@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <math.h>
 #include "robots.h"
-//RuStEd
+//RuStEd tsting
 #define PI 3.141
 char *robotID;
 char *address;
