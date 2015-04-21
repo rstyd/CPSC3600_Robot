@@ -31,8 +31,11 @@ int main(int argc, char *argv[])
 	int sockTCP                        /* Socket descriptor */
 	int sockUDP;
 	signal(SIGINT, interupt);          /*Ctrl-c Signal*/
-	struct sockaddr_in serverAddr; /* server address */
-	struct sockaddr_in fromAddr;     /* Source address */
+	struct sockaddr_in receptionAddr; /* server address */
+	struct sockaddr_in robotAddr;     /* Source address */
+	
+	
+	
 	unsigned short serverPort = 5022;     /* server port */
 	//unsigned int fromSize;           /* In-out of address size for recvfrom() */
 	char *servIP = (char *)malloc(400);                    /* IP address of server */
@@ -109,162 +112,154 @@ int main(int argc, char *argv[])
 	serverAddr.sin_family = AF_INET;         /* Internet addr family */
 	serverAddr.sin_port   = htons(serverPort);     /* Server port */
 	
-	if(type == 0){
-		/*Server IP address*/
-	    serverAddr.sin_addr.s_addr = inet_addr(servIP);
+	memset(&robotAddr, 0, sizeof(robotAddr));
+	robotAddr.sin_family = AF_INET;
+	robotAddr.sin_port = htons(serverPort);
 	
-        /*Resolving address if need be*/
-        if (serverAddr.sin_addr.s_addr == -1) {
-                char tmp[SENDMAX];
-                
-                //fprintf(stderr, "Resolving address '%s'\n", servIP);
-                thehost = gethostbyname(servIP);
-                if(thehost == NULL){
-                    memcpy(tmp, servIP + 7, strlen(servIP) + 1 - 7);
-                    thehost = gethostbyname(tmp);
-                    
-                    /*fprintf(stderr, 
-                    	"	Resolve failed, trying %s\n",tmp);*/
-                }
-                if(thehost == NULL){
-                	thehost = gethostbyname(host);
-                	/*fprintf(stderr, 
-                		"	Resolve failed again, trying %s\n",host);*/
-                }
-                
-                if(thehost == NULL){
-                    host = strtok(host, ":");
-                    if(host[0] == 'h'){
-                        char *more = strtok(NULL, ":");
-                        //strcat(host, more);
-                        host = more+2;
-                    }
-                    char *p = strtok(NULL, ":");
-                    if(p){
-                        serverAddr.sin_port = htons(atoi(p));
-                    }
-                    thehost = gethostbyname(host);
-                    printf("%s\n", host);
-                }
-            
-                if(thehost == NULL){
-                	//fprintf(stderr, "\n%s\n", servIP);
-                    DieWithError("ERROR\tcan't resolve name");
-                }
-                
-                serverAddr.sin_addr.s_addr = 
-                	*((unsigned long *) thehost->h_addr_list[0]);
-            }//end host resolve
-	
-	}else{
-	    serverAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-	}
-	
-	
-	if(type == 0){
-	    fprintf(stderr, "Connecting\n");
-	    if(connect(sock, (struct sockaddr *)
-	    	&serverAddr, sizeof(serverAddr)) < 0){
-	        DieWithError("ERROR\tUnable to connect");
-	    }
-	} else{
-	    if (bind(sock, (struct sockaddr *) 
-	    	&serverAddr, sizeof(serverAddr)) < 0)
-            DieWithError("bind() failed");
+	/*Server IP address*/
+    robotAddr.sin_addr.s_addr = inet_addr(servIP);
 
-        /* Mark the socket so it will listen for incoming connections*/
-        if (listen(sock, 3) < 0)
-            DieWithError("listen() failed");
-	}
-    
-    
-    if(type == 1){
-    ///======================================================RECEPTION
-	    
-	    int csock;                       //Client socket
-	    unsigned int clntLen;/*Length of client*/
-	    char *name = strtok(directory, ".");
-	    char *ext = strtok(NULL, ".");
-	    //struct sockaddr_in fromAddr;     /* Source address */
-	    clntLen = sizeof(fromAddr);
-	    while(1){
-                /* Wait for a client to connect */
-            if ((csock = accept(sock, (struct sockaddr *) &fromAddr, 
-                               &clntLen)) < 0)
-            DieWithError("accept() failed");
-	        /* Recv a response */ 
-	        //fromSize = sizeof(fromAddr);
-	        char buffer[SENDMAX];
-	        bzero(buffer, SENDMAX);
-	        respStringLen = SENDMAX;
-	        int filesize = SENDMAX;
-	        int totalrecieved=0;
-	        char *content = (char *) malloc(SENDMAX);
-	        content[0] = 0;
-	        char *modified = (char *) malloc(200);
-	        
-	        if(strcmp(directory, "stdout") != 0){
-	       		sprintf(modified, "%s%d.%s", name, count, ext);
-	       		//fprintf(stderr, "Printing to %s\n", modified);
-	       	}
-	       	FILE *file = fopen(modified, "w+");
-	       	if(file == NULL){
-		       		DieWithError("Can't open file");
-		       	}
-	        while(respStringLen > 0){
-	            if (((respStringLen = 
-	            	recv(csock,buffer, SENDMAX, 0)) < 0)){
-	                 if(errno != 11){
-	                    DieWithError("ERROR\tRecieve Error");
-	                    }
-	            }
-	            totalrecieved += respStringLen;
-	            if(totalrecieved > filesize){
-	                filesize = filesize + respStringLen;
-	                content = realloc(content, filesize);
-	                //fprintf(stderr, "Resizing to %d\n", filesize);
-	            }
-	            
-	            if(strcmp(directory, "stdout") != 0){
-	            	fwrite (buffer , sizeof(char), respStringLen, file);
-	            }else
-	            	printf("%s\n",buffer);
-	            //strcat(content, buffer);
-	        }
-	        
-	       	fclose(file);
-	       	
-            count++;
-	    }//success/not success loop
-	    close(sock);
-	} else{//SENDING===================================================
-	    long size;
-	    FILE *file = fopen(directory, "rb");
-	    fseek (file , 0 , SEEK_END);
-        size = ftell (file);
-        rewind (file);
+    /*Resolving address if need be*/
+    if (robotAddr.sin_addr.s_addr == -1) {
+            char tmp[SENDMAX];
+            
+            //fprintf(stderr, "Resolving address '%s'\n", servIP);
+            thehost = gethostbyname(servIP);
+            if(thehost == NULL){
+                memcpy(tmp, servIP + 7, strlen(servIP) + 1 - 7);
+                thehost = gethostbyname(tmp);
+                
+                /*fprintf(stderr, 
+                	"	Resolve failed, trying %s\n",tmp);*/
+            }
+            if(thehost == NULL){
+            	thehost = gethostbyname(host);
+            	/*fprintf(stderr, 
+            		"	Resolve failed again, trying %s\n",host);*/
+            }
+            
+            if(thehost == NULL){
+                host = strtok(host, ":");
+                if(host[0] == 'h'){
+                    char *more = strtok(NULL, ":");
+                    //strcat(host, more);
+                    host = more+2;
+                }
+                char *p = strtok(NULL, ":");
+                if(p){
+                    robotAddr.sin_port = htons(atoi(p));
+                }
+                thehost = gethostbyname(host);
+                fprintf(stderr, "Had to do bad things with host %s\n", host);
+            }
         
-       	if(file == NULL){
-       		DieWithError("Can't open file");
-       	}
-       	
-   	    query = (char *)malloc(size * sizeof(char));
-   	    fread (query,1,size,file);
-   	    fclose(file);
-        
-        fprintf(stderr, "Sending\n");
-        if ((send(sock, query, size, 0)) != size){
-            DieWithError("ERROR\tSent wrong # of bytes");
-        }
-        //fprintf(stderr, "    Sent\n=====\n%s=====\n", query);
-        
-		printf("Sent file successfully!\n");
-	}//end send/recieve
+            if(thehost == NULL){
+            	//fprintf(stderr, "\n%s\n", servIP);
+                DieWithError("ERROR\tcan't resolve name");
+            }
+            
+            robotAddr.sin_addr.s_addr = 
+            	*((unsigned long *) thehost->h_addr_list[0]);
+        }//end host resolve
+
+
+    serverAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+
+
+
+
+
+
+
+
+
+
+
+
+
 	return 0;
 }//end main
 
 
 
+
+void sendUDP(int sock, unsigned char *message, int size, struct sockaddr_in serverAddr){
+    
+}
+char *recvUDP(int sock, struct sockaddr_in allAddress){
+
+}
+
+void sendTCP(int sock, unsigned char *message, int size, struct sockaddr_in serverAddr){
+    fprintf(stderr, "Connecting\n");
+    if(connect(sock, (struct sockaddr *)
+    	&serverAddr, sizeof(serverAddr)) < 0){
+        DieWithError("ERROR\tUnable to connect");
+    }
+    
+    
+    fprintf(stderr, "Sending\n");
+    if ((send(sock, (char *)message, size, 0)) != size){
+        DieWithError("ERROR\tSent wrong # of bytes");
+    }
+    
+	fprintf(stderr, "Sent successfully!\n");
+}//end sendTCP
+
+
+char *recvTCP(int sock, struct sockaddr_in serverAddr){
+    if (bind(sock, (struct sockaddr *) 
+    	&serverAddr, sizeof(serverAddr)) < 0)
+        DieWithError("bind() failed");
+
+    /* Mark the socket so it will listen for incoming connections*/
+    if (listen(sock, 3) < 0)
+        DieWithError("listen() failed");
+
+
+    
+    int csock;                       //Client socket
+    unsigned int clntLen;/*Length of client*/
+    struct sockaddr_in fromAddr;
+    
+    clntLen = sizeof(fromAddr);
+    
+        /* Wait for a client to connect */
+    if ((csock = accept(sock, (struct sockaddr *) &fromAddr, 
+                       &clntLen)) < 0)
+    DieWithError("accept() failed");
+    /* Recv a response */ 
+    //fromSize = sizeof(fromAddr);
+    unsigned char buffer[SENDMAX];
+    bzero(buffer, SENDMAX);
+    respStringLen = SENDMAX;
+    int filesize = SENDMAX;
+    int totalrecieved=0;
+    unsigned char *content = (unsigned char *) malloc(SENDMAX);
+    int contentHead = 0;
+    int contentSize = SENDMAX;
+    char *modified = (char *) malloc(200);
+    
+   	
+    while(respStringLen > 0){
+        if (((respStringLen = 
+        	recv(csock,(char *) buffer, SENDMAX, 0)) < 0)){
+             if(errno != 11){
+                DieWithError("ERROR\tRecieve Error");
+                }
+        }
+        totalrecieved += respStringLen;
+        if(totalrecieved > contentSize){
+            content = realloc(content, contentSize * 2);
+            contentSize = contentSize * 2;
+        }
+        
+        memcpy(content + contentHead, buffer, respStringLen * sizeof(unsigned char));
+        contentHead += respStringLen;
+    }//loop for all data
+    
+    return content;            	
+}//end recvTCP
 
 
 
