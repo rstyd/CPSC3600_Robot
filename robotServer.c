@@ -28,7 +28,8 @@ void interupt(int sig);
 int count = 0;
 int main(int argc, char *argv[])
 {
-	int sock;                        /* Socket descriptor */
+	int sockTCP                        /* Socket descriptor */
+	int sockUDP;
 	signal(SIGINT, interupt);          /*Ctrl-c Signal*/
 	struct sockaddr_in serverAddr; /* server address */
 	struct sockaddr_in fromAddr;     /* Source address */
@@ -47,58 +48,52 @@ int main(int argc, char *argv[])
 	    type = 0;
 	}
 	
-	
-	char *directory = (char *)malloc(100);
-	directory[0] = 0;
+	char *id, *imageID;
 	char *tok, *host = (char *)malloc(SENDMAX);
-
-	if(type == 0){//client
-	    servIP[0] = 0;
-	    servIP = argv[2];
-	    serverPort = atoi(argv[3]);
-	    directory = argv[4];
-	    char *del = ".edu";
-	    
-	    tok = (char *)malloc(200);
-	    tok = strstr(servIP, del);
-	    page[0] = '/'; page[1] = 0;
-	    if(tok == NULL){
-	        del = ".com";
-	        tok = strstr(servIP, del);
-	    }
-	    if(tok == NULL){
-	        del = ".org";
-	        tok = strstr(servIP, del);
-	    }
-	    if(tok == NULL){
-		    if(strstr(servIP, "http://") != NULL){
-			    int i;
-			    for(i=7;servIP[i] != '/' && i < 100;i++){
-				
-			    }
-			    memcpy(page, servIP, strlen(servIP));
-			    host = servIP;
+    
+    id = argv[3];
+    imageID = argv[4];
+    
+    
+    servIP[0] = 0;
+    servIP = argv[2];
+    serverPort = atoi(argv[1]);
+    directory = argv[4];
+    char *del = ".edu";
+    
+    tok = (char *)malloc(200);
+    tok = strstr(servIP, del);
+    page[0] = '/'; page[1] = 0;
+    if(tok == NULL){
+        del = ".com";
+        tok = strstr(servIP, del);
+    }
+    if(tok == NULL){
+        del = ".org";
+        tok = strstr(servIP, del);
+    }
+    if(tok == NULL){
+	    if(strstr(servIP, "http://") != NULL){
+		    int i;
+		    for(i=7;servIP[i] != '/' && i < 100;i++){
 			
-			    page = page + i;
-			    host[i] = 0;
 		    }
+		    memcpy(page, servIP, strlen(servIP));
+		    host = servIP;
 		
-	    } else{
-	        tok = strstr(tok, "/");
-	        strncpy(host, servIP, strlen(servIP) - strlen(tok));
-	        host[strlen(servIP) - strlen(tok)] = '\0';
-	
-	
-	        strcpy(page, tok);
-	        memcpy(servIP, host, strlen(host) + 1);
+		    page = page + i;
+		    host[i] = 0;
 	    }
-	} else{//server
+    } else{
+        tok = strstr(tok, "/");
+        strncpy(host, servIP, strlen(servIP) - strlen(tok));
+        host[strlen(servIP) - strlen(tok)] = '\0';
 
-	    serverPort = atoi(argv[2]);
-	    
-	    
-	    directory = argv[3];
-	}
+
+        strcpy(page, tok);
+        memcpy(servIP, host, strlen(host) + 1);
+    }
+	
 	
 	/*fprintf(stderr, "Page: %s servIP: %s port: 
 		%d directory: %s\n", page, servIP, serverPort, directory);*/
@@ -106,7 +101,7 @@ int main(int argc, char *argv[])
 	
     //fprintf(stderr, "Creating socket\n");
 	/* Create a TCP socket */
-	if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+	if ((sockTCP = socket(AF_INET, SOCK_STREAM, 0)) < 0)
 	    DieWithError("ERROR\tSocket Error");
 	    
 	/* Construct the server address structure */
