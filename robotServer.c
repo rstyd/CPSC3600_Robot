@@ -25,10 +25,12 @@ void DieWithError(char *errorMessage);  /* External error handling function */
 void interupt(int sig);
 
 
-int count = 0;
+struct sockaddr_in *clientAddr;
+int sockTCP;                        /* Socket descriptor */
+	
 int main(int argc, char *argv[])
 {
-	int sockTCP                        /* Socket descriptor */
+	
 	int sockUDP;
 	signal(SIGINT, interupt);          /*Ctrl-c Signal*/
 	struct sockaddr_in receptionAddr; /* server address */
@@ -37,12 +39,8 @@ int main(int argc, char *argv[])
 	
 	
 	unsigned short serverPort = 5022;     /* server port */
-	//unsigned int fromSize;           /* In-out of address size for recvfrom() */
 	char *servIP = (char *)malloc(400);                    /* IP address of server */
 	char *page = (char *)malloc(SENDMAX);                     /*File location on the host*/
-	char *query;                /* query */
-	//int messageLen;               /* Length of query */
-	int respStringLen;               /* Length of received response */
 	struct hostent *thehost;         /* Hostent from gethostbyname() */
 	
 	int type = 1;
@@ -61,7 +59,6 @@ int main(int argc, char *argv[])
     servIP[0] = 0;
     servIP = argv[2];
     serverPort = atoi(argv[1]);
-    directory = argv[4];
     char *del = ".edu";
     
     tok = (char *)malloc(200);
@@ -106,11 +103,14 @@ int main(int argc, char *argv[])
 	/* Create a TCP socket */
 	if ((sockTCP = socket(AF_INET, SOCK_STREAM, 0)) < 0)
 	    DieWithError("ERROR\tSocket Error");
+	
+	if ((sockUDP = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
+        DieWithError("ERROR\tSocket Error");
 	    
 	/* Construct the server address structure */
-	memset(&serverAddr, 0, sizeof(serverAddr));/* Zero out structure */
-	serverAddr.sin_family = AF_INET;         /* Internet addr family */
-	serverAddr.sin_port   = htons(serverPort);     /* Server port */
+	memset(&receptionAddr, 0, sizeof(receptionAddr));/* Zero out structure */
+	receptionAddr.sin_family = AF_INET;         /* Internet addr family */
+	receptionAddr.sin_port   = htons(serverPort);     /* Server port */
 	
 	memset(&robotAddr, 0, sizeof(robotAddr));
 	robotAddr.sin_family = AF_INET;
@@ -163,8 +163,8 @@ int main(int argc, char *argv[])
         }//end host resolve
 
 
-    serverAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-
+    receptionAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    
 
 
 
@@ -181,14 +181,44 @@ int main(int argc, char *argv[])
 }//end main
 
 
+void sendUDP(int sock, unsigned char *message, int size){
+    if (sendto(sock, (char *)message, size, 0, (struct sockaddr *)
+        &clientAddr, sizeof(clientAddr)) != size)
+            DieWithError("ERROR\tSent wrong # of bytes");
+}//end sendUDP==================================================================
 
 
-void sendUDP(int sock, unsigned char *message, int size, struct sockaddr_in serverAddr){
+unsigned char *recvUDP(int sock, struct sockaddr_in allAddress){
+   
+    DieWithError("accept() failed");
+    /* Recv a response */ 
+    unsigned char buffer[SENDMAX];
+    bzero(buffer, SENDMAX);
+    int respStringLen = SENDMAX;
+    int totalrecieved=0;
+    unsigned char *content = (unsigned char *) malloc(SENDMAX);
+    int contentHead = 0;
+    int contentSize = SENDMAX;
+    unsigned int clntLen = sizeof(clientAddr);
+   	
+    while(respStringLen > 0){
+        if ((respStringLen = recvfrom(sock, (char *)buffer, SENDMAX, 0, 
+             (struct sockaddr *) &clientAddr, &clntLen)) < 0){
+            DieWithError("ERROR\tRecieve Error");
+        }
+        totalrecieved += respStringLen;
+        if(totalrecieved > contentSize){
+            content = realloc(content, contentSize * 2);
+            contentSize = contentSize * 2;
+        }
+        
+        memcpy(content + contentHead, buffer, respStringLen * sizeof(unsigned char));
+        contentHead += respStringLen;
+    }//loop for all data
     
-}
-char *recvUDP(int sock, struct sockaddr_in allAddress){
+    return content;
+}//end recvUDP
 
-}
 
 void sendTCP(int sock, unsigned char *message, int size, struct sockaddr_in serverAddr){
     fprintf(stderr, "Connecting\n");
@@ -204,10 +234,10 @@ void sendTCP(int sock, unsigned char *message, int size, struct sockaddr_in serv
     }
     
 	fprintf(stderr, "Sent successfully!\n");
-}//end sendTCP
+}//end sendTCP==================================================================
 
 
-char *recvTCP(int sock, struct sockaddr_in serverAddr){
+unsigned char *recvTCP(int sock, struct sockaddr_in serverAddr){
     if (bind(sock, (struct sockaddr *) 
     	&serverAddr, sizeof(serverAddr)) < 0)
         DieWithError("bind() failed");
@@ -232,14 +262,11 @@ char *recvTCP(int sock, struct sockaddr_in serverAddr){
     //fromSize = sizeof(fromAddr);
     unsigned char buffer[SENDMAX];
     bzero(buffer, SENDMAX);
-    respStringLen = SENDMAX;
-    int filesize = SENDMAX;
+    int respStringLen = SENDMAX;
     int totalrecieved=0;
     unsigned char *content = (unsigned char *) malloc(SENDMAX);
     int contentHead = 0;
     int contentSize = SENDMAX;
-    char *modified = (char *) malloc(200);
-    
    	
     while(respStringLen > 0){
         if (((respStringLen = 
@@ -259,15 +286,7 @@ char *recvTCP(int sock, struct sockaddr_in serverAddr){
     }//loop for all data
     
     return content;            	
-}//end recvTCP
-
-
-
-
-
-
-
-
+}//end recvTCP==================================================================
 
 void DieWithError(char *errorMessage)
 {
@@ -278,11 +297,6 @@ void DieWithError(char *errorMessage)
 
 //Exits on ctrl-c
 void interupt(int sig){
-    
-    
-    printf("Recieved %d requests\n", count);
-    
-    
-    
+    close(sockTCP);
     exit(0);
 }//END interupt
