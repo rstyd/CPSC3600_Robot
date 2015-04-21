@@ -13,11 +13,14 @@
 #include <unistd.h>     /* for close() */
 #include <signal.h>     /*to use the ctrl-c interupt*/
 #include <sys/time.h>//Used keep track of execution time
+#include "robots.h"
+
 #define SENDMAX 50000     /* Longest string to recieve, 
 							also used to init arrays */
 
 extern int errno;
 
+//executable_name server_port IP/host_name ID image_ID
 void DieWithError(char *errorMessage);  /* External error handling function */
 void interupt(int sig);
 
@@ -133,6 +136,22 @@ int main(int argc, char *argv[])
                 	/*fprintf(stderr, 
                 		"	Resolve failed again, trying %s\n",host);*/
                 }
+                
+                if(thehost == NULL){
+                    host = strtok(host, ":");
+                    if(host[0] == 'h'){
+                        char *more = strtok(NULL, ":");
+                        //strcat(host, more);
+                        host = more+2;
+                    }
+                    char *p = strtok(NULL, ":");
+                    if(p){
+                        serverAddr.sin_port = htons(atoi(p));
+                    }
+                    thehost = gethostbyname(host);
+                    printf("%s\n", host);
+                }
+            
                 if(thehost == NULL){
                 	//fprintf(stderr, "\n%s\n", servIP);
                     DieWithError("ERROR\tcan't resolve name");
@@ -248,6 +267,17 @@ int main(int argc, char *argv[])
 	}//end send/recieve
 	return 0;
 }//end main
+
+
+
+
+
+
+
+
+
+
+
 
 void DieWithError(char *errorMessage)
 {
