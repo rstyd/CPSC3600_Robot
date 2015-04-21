@@ -15,9 +15,9 @@ enum commands {MOVE, TURN, STOP, IMAGE, GPS, DGPS, LASERS};
 
 
 
-void sendUDP(int sock, unsigned char *message, struct sockaddr_in serverAddr);
+void sendUDP(int sock, unsigned char *message, int size, struct sockaddr_in serverAddr);
 char *recvUDP(int sock, struct sockaddr_in allAddress);
 
-void sendTCP(int sock, char *message, struct sockaddr_in serverAddr);
+void sendTCP(int sock, char *message, int size, struct sockaddr_in serverAddr);
 char *recvTCP(int sock, struct sockaddr_in fromAddr);
 
