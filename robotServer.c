@@ -165,18 +165,53 @@ int main(int argc, char *argv[])
 
     receptionAddr.sin_addr.s_addr = htonl(INADDR_ANY);
     
+    while(1){
+        requestMsg *newRequest; 
+        unsigned char *resp = recvUDP(sockUDP, receptionAddr);
+        newRequest = resp;
+        //TODO: set page according to resp
+        char *query = malloc(sizeof(char) * 500);
+        query[0] = 0;
+        sprintf(query, 
+        "GET %s HTTP/1.1\r\n"
+        "User-Agent: wget/1.14 (linux-gnu)\r\n"
+        "Host: %s\r\n"
+        "Connection: Keep-Alive\r\n"
+        "\r\n", page, host);
+
+        //TODO: send this message
+        
+        unsigned char *content = recvTCP(sockTCP, robotAddr);
+
+        char *header = (char *)malloc(500);
+        header[0] = 0;
+        int act = 1, i = 0;
+        for(;i<strlen(content);i++){
+            header[i] = content[i];
+            if(content[i] == '\n' || content[i] == '\r'){
+                if(act == 2){
+                    header[i+1] = 0;
+                    break;
+                } else if(act == 0){
+                    act = 2;
+                } else
+                    act = 0;
+            } else
+                act = 1;
+        }//end for
+        fprintf(stderr, "%s\n", header);
+        
+        content = strstr(content, "\r\n\r\n");
+        if(content == NULL){
+            //fprintf(stderr, "Issue with content request\n%s", content);
+        }
+        content = content + 4;
+
+    }//end ETERNAL LOOP
 
 
 
-
-
-
-
-
-
-
-
-
+    
 	return 0;
 }//end main
 
