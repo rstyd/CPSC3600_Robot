@@ -168,24 +168,28 @@ int main(int argc, char *argv[])
     while(1){
         requestMsg *newRequest; 
         unsigned char *resp = recvUDP(sockUDP, receptionAddr);
-        newRequest = resp;
+        newRequest = (requestMsg *)resp;
         //TODO: set page according to resp
         char *query = malloc(sizeof(char) * 500);
         query[0] = 0;
         char *page = dGPS;
+       	robotAddr.sin_port = htons(8084);
 
         char *cmd = newRequest->command;
 
         if(strstr(cmd, "IMAGE") != NULL){
        		page = imageAddr;
+       		robotAddr.sin_port = htons(8081);
         }
         if(strstr(cmd, "DGPS") != NULL){
        		page = dGPS;
         }else if(strstr(cmd, "GPS") != NULL){
        		page = action;
+       		robotAddr.sin_port = htons(8082);
         }
         if(strstr(cmd, "LASERS") != NULL){
        		page = lasers;
+       		robotAddr.sin_port = htons(8083);
         }
         if(strstr(cmd, "MOVE") != NULL){
        		page = action;
@@ -193,6 +197,7 @@ int main(int argc, char *argv[])
        		strtok(cmd, " ");
        		char *vel = strtok(NULL, " ");
        		page = strcat(page, vel);
+       		robotAddr.sin_port = htons(8082);
         }
         if(strstr(cmd, "TURN") != NULL){
        		page = action;
@@ -200,10 +205,12 @@ int main(int argc, char *argv[])
        		strtok(cmd, " ");
        		char *vel = strtok(NULL, " ");
        		page = strcat(page, vel);
+       		robotAddr.sin_port = htons(8082);
         }
         if(strstr(cmd, "STOP") != NULL){
        		page = action;
        		page = strcat(page, "&lx=0");
+       		robotAddr.sin_port = htons(8082);
         }
 
         sprintf(query, 
@@ -213,14 +220,14 @@ int main(int argc, char *argv[])
         "Connection: Keep-Alive\r\n"
         "\r\n", page, host);
 
-       	sendTCP(sockTCP, query, strlen(query), robotAddr);
+       	sendTCP(sockTCP, (unsigned char *)query, strlen(query), robotAddr);
         
         unsigned char *content = recvTCP(sockTCP, robotAddr);
 
         char *header = (char *)malloc(500);
         header[0] = 0;
         int act = 1, i = 0;
-        for(;i<strlen(content);i++){
+        for(;i<strlen((char *)content);i++){
             header[i] = content[i];
             if(content[i] == '\n' || content[i] == '\r'){
                 if(act == 2){
@@ -235,41 +242,42 @@ int main(int argc, char *argv[])
         }//end for
         fprintf(stderr, "%s\n", header);
         
-        content = strstr(content, "\r\n\r\n");
+        content = (unsigned char *)strstr((char *)content, "\r\n\r\n");
         if(content == NULL){
             //fprintf(stderr, "Issue with content request\n%s", content);
         }
         content = content + 4;
 
-        response_message *rm = (response_message *) malloc(sizeof(response_message));
+        struct response_message *rm = (struct response_message *) malloc(sizeof( struct response_message));
 
-        int sent = 0;
-        int number = (1000 - sizeof(response_message))/responseSize;
+        int number = (1000 - sizeof(struct response_message) + sizeof(void *))/responseSize;
         if(number == 0)
        		number = 1;
         rm->nMessages = number; 
         int sequence = 0;
-        while(sent < responseSize){
-       		rm->sequenceN = sequence;
-
-       		sent = 
-        }
-
-        rm->
-
-
-
-
+        int keeper = 0;
+        while(sequence < number){
+            rm->sequenceN = sequence;
+            if(sequence == number - 1){
+                rm->data = content + (responseSize % 1000 - 
+                    sizeof(struct response_message) + sizeof(void *));
+                sendUDP(sockUDP, (unsigned char *)rm, (responseSize % 1000 - 
+                    sizeof(struct response_message) + sizeof(void *)));
+                break;
+                
+            }
+       		
+            rm->data = content + keeper;
+            keeper += 1000 - sizeof(struct response_message) + sizeof(void *);
+            sendUDP(sockUDP, (unsigned char *) rm, 1000);
+        }//end sequence loop
     }//end ETERNAL LOOP
-
-
-
-    
 	return 0;
 }//end main
 
 
 void sendUDP(int sock, unsigned char *message, int size){
+    fprintf(stderr, "Sending response to client\n");
     if (sendto(sock, (char *)message, size, 0, (struct sockaddr *)
         &clientAddr, sizeof(clientAddr)) != size)
             DieWithError("ERROR\tSent wrong # of bytes");
@@ -278,7 +286,7 @@ void sendUDP(int sock, unsigned char *message, int size){
 
 unsigned char *recvUDP(int sock, struct sockaddr_in allAddress){
    
-    DieWithError("accept() failed");
+    fprintf(stderr,"waiting for command\n");
     /* Recv a response */ 
     unsigned char buffer[SENDMAX];
     bzero(buffer, SENDMAX);
@@ -309,7 +317,7 @@ unsigned char *recvUDP(int sock, struct sockaddr_in allAddress){
 
 
 void sendTCP(int sock, unsigned char *message, int size, struct sockaddr_in serverAddr){
-    fprintf(stderr, "Connecting\n");
+    fprintf(stderr, "Connecting to robot\n");
     if(connect(sock, (struct sockaddr *)
     	&serverAddr, sizeof(serverAddr)) < 0){
         DieWithError("ERROR\tUnable to connect");
@@ -326,6 +334,7 @@ void sendTCP(int sock, unsigned char *message, int size, struct sockaddr_in serv
 
 
 unsigned char *recvTCP(int sock, struct sockaddr_in serverAddr){
+    fprintf(stderr, "getting response from robot\n");
     if (bind(sock, (struct sockaddr *) 
     	&serverAddr, sizeof(serverAddr)) < 0)
         DieWithError("bind() failed");
@@ -373,6 +382,7 @@ unsigned char *recvTCP(int sock, struct sockaddr_in serverAddr){
         contentHead += respStringLen;
     }//loop for all data
     responseSize = totalrecieved;
+    close(sockTCP);
     return content;            	
 }//end recvTCP==================================================================
 
@@ -385,6 +395,7 @@ void DieWithError(char *errorMessage)
 
 //Exits on ctrl-c
 void interupt(int sig){
+    fprintf(stderr, "\nEnding it all!\n");
     close(sockTCP);
     exit(0);
 }//END interupt
