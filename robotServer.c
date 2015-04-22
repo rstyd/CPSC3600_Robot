@@ -259,8 +259,8 @@ int main(int argc, char *argv[])
         while(sequence < number){
             rm->sequenceN = sequence;
             if(sequence == number - 1){
-                rm->data = content + (responseSize % 1000 - 
-                    sizeof(struct response_message) + sizeof(void *));
+                rm->data = content + (responseSize % (1000 - 
+                    sizeof(struct response_message) + sizeof(void *)));
                 sendUDP(sockUDP, (unsigned char *)rm, (responseSize % 1000 - 
                     sizeof(struct response_message) + sizeof(void *)));
                 break;
