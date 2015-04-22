@@ -69,6 +69,11 @@ int main(int argc, char *argv[])
 
     getArguments(argv);
     
+    if(sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP) < 0){
+     perror("socket() failed");
+     return -1;
+    }
+
     double angle = (PI * (N-2))/N; 
     
     int turn = 0;
@@ -118,8 +123,9 @@ void moveRobot(int meters) {
     requestMsg *request = makeRequest(command);
     sendRequest(request);
     // Wait for 5 seconds to timeout
-        
+    sleep(5); //should wait for response instead??? 
     // Wait for 2 more seconds 
+    sleep(2);   
     stopRobot(); 
 }
 
@@ -196,3 +202,28 @@ requestMsg *makeRequest(char *command) {
     strcpy(newRequest->command, command);
     return newRequest;
 }
+
+#ifdef MY_CONTROL_MACRO
+
+responseMsg messages[100];  //array of response messages from server
+
+void recvRequest(){
+  //--------variables-----------//
+  int order; //message number we should be on or count
+  //----------------------------//
+  memset(messages,0,sizeof(responseMsg)*100); //zero out array and make space
+  //
+  while(1){
+    memset(/*buffer*/, 0, /*bufferSize*/);
+    if (/*int recvSize*/ = recvfrom(sock, /*buffer*/,....) < 0){
+      fprintf(stderr, "recv() less than 0 bytes error or done");
+      break;
+    }
+    else{
+      //convert buffer into struct and add to the array
+  }
+}
+
+void recvAckno(int timeout){}
+#endif
+
