@@ -1,0 +1,25 @@
+CC=clang
+CFLAGS=-Wall
+
+BINS=robotClient robotServer
+
+all: $(BINS)
+
+robotClient: robotClient.c
+	$(CC) $(CFLAGS) -o robotClient robotClient.c
+	
+robotServer: robotServer.c
+	$(CC) $(CFLAGS) -o robotServer robotServer.c
+
+clean:
+	rm robotClient robotServer
+	clear
+
+client:
+	./robotClient localhost 5022 2agreeable 4 3
+
+server:
+	./robotServer 5022 130.127.192.62 2agreeable 5
+
+package:
+	tar cvzf smsouth_others.tar.gz README robot.h robotClient.c robotServer.c Makefile
