@@ -27,7 +27,7 @@ void interupt(int sig);
 
 struct sockaddr_in *clientAddr;
 int sockTCP;                        /* Socket descriptor */
-	
+int responseSize;	
 int main(int argc, char *argv[])
 {
 	
@@ -172,6 +172,40 @@ int main(int argc, char *argv[])
         //TODO: set page according to resp
         char *query = malloc(sizeof(char) * 500);
         query[0] = 0;
+        char *page = dGPS;
+
+        char *cmd = newRequest->command;
+
+        if(strstr(cmd, "IMAGE") != NULL){
+       		page = imageAddr;
+        }
+        if(strstr(cmd, "DGPS") != NULL){
+       		page = dGPS;
+        }else if(strstr(cmd, "GPS") != NULL){
+       		page = action;
+        }
+        if(strstr(cmd, "LASERS") != NULL){
+       		page = lasers;
+        }
+        if(strstr(cmd, "MOVE") != NULL){
+       		page = action;
+       		page = strcat(page, "&lx=");
+       		strtok(cmd, " ");
+       		char *vel = strtok(NULL, " ");
+       		page = strcat(page, vel);
+        }
+        if(strstr(cmd, "TURN") != NULL){
+       		page = action;
+       		page = strcat(page, "&az=");
+       		strtok(cmd, " ");
+       		char *vel = strtok(NULL, " ");
+       		page = strcat(page, vel);
+        }
+        if(strstr(cmd, "STOP") != NULL){
+       		page = action;
+       		page = strcat(page, "&lx=0");
+        }
+
         sprintf(query, 
         "GET %s HTTP/1.1\r\n"
         "User-Agent: wget/1.14 (linux-gnu)\r\n"
@@ -179,7 +213,7 @@ int main(int argc, char *argv[])
         "Connection: Keep-Alive\r\n"
         "\r\n", page, host);
 
-        //TODO: send this message
+       	sendTCP(sockTCP, query, strlen(query), robotAddr);
         
         unsigned char *content = recvTCP(sockTCP, robotAddr);
 
@@ -206,6 +240,25 @@ int main(int argc, char *argv[])
             //fprintf(stderr, "Issue with content request\n%s", content);
         }
         content = content + 4;
+
+        response_message *rm = (response_message *) malloc(sizeof(response_message));
+
+        int sent = 0;
+        int number = (1000 - sizeof(response_message))/responseSize;
+        if(number == 0)
+       		number = 1;
+        rm->nMessages = number; 
+        int sequence = 0;
+        while(sent < responseSize){
+       		rm->sequenceN = sequence;
+
+       		sent = 
+        }
+
+        rm->
+
+
+
 
     }//end ETERNAL LOOP
 
@@ -319,7 +372,7 @@ unsigned char *recvTCP(int sock, struct sockaddr_in serverAddr){
         memcpy(content + contentHead, buffer, respStringLen * sizeof(unsigned char));
         contentHead += respStringLen;
     }//loop for all data
-    
+    responseSize = totalrecieved;
     return content;            	
 }//end recvTCP==================================================================
 
