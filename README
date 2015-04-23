@@ -1,5 +1,23 @@
 ::CPSC 3600 Project 4::
 
+
+Group Members: Rusty Davis, David Johnson, Sean Southard, Bradley Briggs
+
+
 Robot ID: 2agreeable Image_Id: 5
+
+
+Description:
+	The purpose of this program is to create a HTTP/UDP client server program to interact with a given robot. In addition to its interaction with the robot it should be able to communicate with other server clients programs of other groups in the class. 
+
+
+
+KNOWN PROBLEMS:
+
+
+
+
+DESIGN:
+
 
 
