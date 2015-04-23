@@ -241,15 +241,15 @@ requestMsg *makeRequest(char *command) {
 void recvRequest(){
 //return array of response msg instead???
     puts("SDSDD");
-    responseMsg *messages[100];  //array of response messages from server
-     
+    responseMsg messages[100];  //array of response messages from server
+    responseMsg head;
     char returnBuffer[1000];
     int respStringLen = 0;
     
     unsigned int fromSize = sizeof(fromAddr);
     if ((respStringLen = recvfrom(sock, returnBuffer, 1000, 0,
-                            (struct sockaddr *) &fromAddr, &fromSize)) < 1) 
-            {
+                            (struct sockaddr *) &fromAddr, &fromSize)) < 1)
+	 {
                 // Check to see if the socket timedout
                 if (errno == EAGAIN) {
                     fprintf(stderr, "NOOOOO");
@@ -257,7 +257,18 @@ void recvRequest(){
                 }
                 else
                     DieWithError("recvfrom() failed");
-            }
+    }else{
+		 /*head.requestID = *returnBuffer + sizeof(unsigned int);
+		 head.nMessages = *returnBuffer + sizeof(unsigned int);
+		 head.nMessages = *returnBuffer + sizeof(unsigned int);*/
+		 memcpy(head->requestID, &returnBuffer, 4);
+    	 memcpy(head->nMessages, returnBuffer + 4, 4);
+   	 memcpy(head->sequenceN, returnBuffer + 8, 4);
+		 memcpy(head->data, returnBuffer + 12, respStringLen - 12);
+		 puts("revieved the data");
+
+
+	 }
     
     while (true) {
         memset(returnBuffer, 0, 1000);
