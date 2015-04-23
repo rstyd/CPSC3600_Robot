@@ -1,5 +1,3 @@
-/*Sean Southard, smsouthExam2.c*/
-
 #include <netdb.h>      /* for getHostByName() */
 #include <stdio.h>
 #include <stdlib.h>
@@ -40,6 +38,9 @@ unsigned char *recvTCP();
 struct sockaddr_in clientAddr;
 
 int sockTCP;                        /* Socket descriptor */
+int sockTCP_IMAGE;
+int sockTCP_;
+
 int sockUDP;
 
 int responseSize;	
@@ -104,7 +105,12 @@ int main(int argc, char *argv[])
     if (bind(sockUDP, (struct sockaddr *) 
                 &receptionAddr, sizeof(receptionAddr)) < 0)
         DieWithError("bind() failed");
-
+    
+   if(connect(sockTCP, (struct sockaddr *)
+                &robotAddr, sizeof(robotAddr)) < 0){
+        DieWithError("ERROR\tUnable to connect");
+         }
+ 
     while(true){
         unsigned char *resp = recvUDP(sockUDP, receptionAddr);
         puts("MAKING request");
@@ -173,10 +179,11 @@ int main(int argc, char *argv[])
                 "Host: %s\r\n"
                 "Connection: Keep-Alive\r\n"
                 "\r\n", page, host);
-
+      
         sendTCP(sockTCP, (unsigned char *)query, strlen(query));
         puts("HMM"); 
         unsigned char *response =  recvTCP(sockTCP, robotAddr);
+        //close(sockTCP);
         printf("%s", response);
         responseSize = strlen(response);
         puts("GOT TCP STUFF");
@@ -199,28 +206,20 @@ int main(int argc, char *argv[])
         printf("Response Size: %d\n", responseSize);
 
         int transmission = 1000 - sizeof(responseMsg) + sizeof(void *);
-        
-        if (command == MOVE || command == TURN || command == STOP) {
-            rm->data = NULL;
-            responseSize = sizeof(responseMsg);
-        }
-        else {
-            rm->data = malloc(transmission);
-        }
-
+        rm->data = malloc(transmission);
 
         while(sequence < number){
             rm->sequenceN = sequence;
+            rm->nMessages = number;
             if (sequence == number - 1){
                 //rm->data = content + (responseSize % transmission);
-                if (rm->data != NULL)
-                    memcpy(rm->data, content + offset, responseSize % transmission);
                 sendUDP(sockUDP, (unsigned char *)rm, (responseSize % transmission));
                 break;
             }
             memcpy(rm->data, content + offset, transmission);
             offset += transmission;
             sendUDP(sockUDP, (unsigned char *) rm, 1000);
+            sequence++;
         }//end sequence loop
     }//end ETERNAL LOOP
     return 0;
@@ -257,11 +256,7 @@ unsigned char *recvUDP(int sock, struct sockaddr_in allAddress){
 // Sends a TCP message of size bytes
 void sendTCP(int sock, unsigned char *message, int size){ 
     fprintf(stderr, "Connecting to robot\n");
-    if(connect(sockTCP, (struct sockaddr *)
-                &robotAddr, sizeof(robotAddr)) < 0){
-        DieWithError("ERROR\tUnable to connect");
-    }
-    puts("SDDS");
+  puts("SDDS");
     fprintf(stderr, "Sending\n");
     printf("%s\n", message);
     if ((send(sockTCP, (char *)message, size, 0)) != size){
@@ -285,7 +280,6 @@ unsigned char *recvTCP(){
     memcpy(cont, buffer, bytesRcvd);
     //printf("%s\n", buffer); 
     responseSize = bytesRcvd;
-    close(sockTCP); 
     return cont;             	
 }
 

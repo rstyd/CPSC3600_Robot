@@ -35,7 +35,7 @@ char *getDGPS();
 char *getLasers();
 
 void getImage();
-void recvRequest();
+void *recvRequest();
 int sock;
 
 struct sockaddr_in middlewareAddr;  // Local Address
@@ -72,21 +72,22 @@ int main(int argc, char *argv[])
     middlewareAddr.sin_addr.s_addr = inet_addr(serverIP);
     // Server port
     middlewareAddr.sin_port = htons(port);
-    
+
     // Get the actual name of the host if given an IP address
     if (middlewareAddr.sin_addr.s_addr == -1){
+        puts("PI");
         thehost = gethostbyname(serverIP);
-        middlewareAddr.sin_addr.s_addr = *((unsigned int *) thehost->h_addr_list[0]);
+        middlewareAddr.sin_addr.s_addr = *((unsigned long *) thehost->h_addr_list[0]);
     }
 
-    
+
     if((sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0){
-     perror("socket() failed");
-     return -1;
+        perror("socket() failed");
+        return -1;
     }
 
     double angle = (PI * (N-2))/N; 
-    
+
     int turn = 0;
     takeSnapshot(turn);
     // Draw the first Polygon
@@ -119,7 +120,6 @@ void takeSnapshot(int turn) {
     char *GPS = getGPS();
     char *DGPS = getDGPS();
     char *lasers = getLasers();
-    
     fprintf(textFile, "%s\n%s\n%s", GPS, DGPS, lasers);
     fclose(textFile);
     getImage();
@@ -214,14 +214,14 @@ void sendRequest(requestMsg *request) {
     memcpy(requestBuffer + 4 + strlen(request->robotID) + 1, request->command, strlen(request->command) + 1);
     printf("%s %s\n", requestBuffer + 4, requestBuffer + 4 + strlen(request->robotID) + 1);
     int requestLen = bufSize; 
-   // Send the guess
-   if ((sent = sendto(sock, requestBuffer, requestLen + 1, 0, (struct sockaddr *)
-    &middlewareAddr, sizeof(middlewareAddr))) != requestLen + 1)
-   {
-       printf("SENT: %d %zu\n", sent, bufSize);
-         DieWithError("sendto() sent a different number of bytes than expected");
-   }
-   printf("%d sent request\n", sent);
+    // Send the guess
+    if ((sent = sendto(sock, requestBuffer, requestLen + 1, 0, (struct sockaddr *)
+                    &middlewareAddr, sizeof(middlewareAddr))) != requestLen + 1)
+    {
+        printf("SENT: %d %zu\n", sent, bufSize);
+        DieWithError("sendto() sent a different number of bytes than expected");
+    }
+    printf("%d sent request\n", sent);
 
 }
 // Creates a new request.
@@ -238,77 +238,113 @@ requestMsg *makeRequest(char *command) {
 
 
 
-void recvRequest(){
-//return array of response msg instead???
+void *recvRequest(){
+    //return array of response msg instead???
     puts("SDSDD");
-    responseMsg messages[100];  //array of response messages from server
-    responseMsg head;
+    responseMsg *messages[1000];  //array of response messages from server
+
+    for (int i = 0; i < 1000; i++) {
+        messages[i] = NULL;
+    }
+
     char returnBuffer[1000];
     int respStringLen = 0;
-    
+
     unsigned int fromSize = sizeof(fromAddr);
-    if ((respStringLen = recvfrom(sock, returnBuffer, 1000, 0,
-                            (struct sockaddr *) &fromAddr, &fromSize)) < 1)
-	 {
-                // Check to see if the socket timedout
-                if (errno == EAGAIN) {
-                    fprintf(stderr, "NOOOOO");
-                    exit(1);
-                }
-                else
-                    DieWithError("recvfrom() failed");
-    }else{
-		 /*head.requestID = *returnBuffer + sizeof(unsigned int);
-		 head.nMessages = *returnBuffer + sizeof(unsigned int);
-		 head.nMessages = *returnBuffer + sizeof(unsigned int);*/
-		 memcpy(head->requestID, &returnBuffer, 4);
-    	 memcpy(head->nMessages, returnBuffer + 4, 4);
-   	 memcpy(head->sequenceN, returnBuffer + 8, 4);
-		 memcpy(head->data, returnBuffer + 12, respStringLen - 12);
-		 puts("revieved the data");
-
-
-	 }
-    
+    int nMessages = -1;
+    // Set the timeout
+    struct timeval timeout;
+    timeout.tv_sec = 5;
+    timeout.tv_usec = 0;
+    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO,&timeout,sizeof(timeout)) < 0) {
+        DieWithError("Could not set timeout");
+    }
+    int size = 0;
+    int messagesRcvd = 0;
     while (true) {
+        if (nMessages == messagesRcvd) {
+            puts("GOT a MESSAGE");
+            break;
+        }
         memset(returnBuffer, 0, 1000);
-
         int respStringLen = 0;
 
         if ((respStringLen = recvfrom(sock, returnBuffer, 1000, 0,
-                            (struct sockaddr *) &fromAddr, &fromSize)) < 1) 
-            {
-                // Check to see if the socket timedout
-                if (errno == EAGAIN) {
-                    fprintf(stderr, "NOOOOO");
-                    exit(1);
-                }
-                else
-                    DieWithError("recvfrom() failed");
+                        (struct sockaddr *) &fromAddr, &fromSize)) < 1) 
+        {
+            // Check to see if the socket timedout
+            if (errno == EAGAIN) {
+                errno = 0;
+                break; 
             }
-     }
-      
+            else
+                DieWithError("recvfrom() failed");
+        }
+        size += respStringLen - 12;
+        responseMsg *msg = malloc(sizeof(responseMsg));     
+        memcpy(&msg->requestID, &returnBuffer, 4);
+        memcpy(&msg->nMessages, returnBuffer + 4, 4);
+        memcpy(&msg->sequenceN, returnBuffer + 8, 4);
+        printf("ID: %d SEQ: %d nMessages: %d\n", msg->requestID, msg->sequenceN, msg->nMessages);
+        msg->data = malloc(988);
+        printf("POINTA: %p\n", msg->data);
+        memcpy(msg->data, returnBuffer + 12, respStringLen - 12);
+        int nSequence = msg->sequenceN; 
+        if (nMessages != -1)  {
+            nMessages = msg->nMessages; 
+            puts("revieved the data");
+            if (nMessages > 1000) {
+                realloc(messages, nMessages * 1000); 
+            }
+        }
+        messages[msg->sequenceN] = msg;
+        messagesRcvd++;
+    }
+     
+     
+    for (int i = 0; i < nMessages; i++) {
+        if (messages[i] == NULL) {
+            fprintf(stderr, "Did not get all the messages required");
+            exit(1); 
+        }
+    }
+    
+    printf("Size: %d\n", size);
+    void *data = malloc(size);
+    
+     int offset = 0;
+     for (int i = 0; i < nMessages; i++) {
+        if (size < 988)
+          memcpy(data + offset, messages[i]->data, size);
+        else  {
+          memcpy(data + offset, messages[i]->data, 988);
+          size -= 988;
+          offset += 988;
+        }
+    }
+     
+    return data;
 }
 void recvLarge(){
-  //--------variables-----------//
-  int order; //message number we should be on or count
-  int recvSize; //size of received message
-  time_t start_t, end_t;
-  double diff_t;
-  responseMsg messages[100];  //array of response messages from server
-  //----------------------------//
-  memset(messages,0,sizeof(responseMsg)*100); //zero out array and make space
-  //
- //   memset(buffer, 0, bufferSize);
-  //
-  //time(&start_t);
-  while(1){
-    puts("SDSDD");
-    while (true) {
-        int respStringLen = 0;
-        char returnBuffer[100];
-        unsigned int fromSize = sizeof(fromAddr);
-        if ((respStringLen = recvfrom(sock, returnBuffer, 100, 0,
+    //--------variables-----------//
+    int order; //message number we should be on or count
+    int recvSize; //size of received message
+    time_t start_t, end_t;
+    double diff_t;
+    responseMsg messages[100];  //array of response messages from server
+    //----------------------------//
+    memset(messages,0,sizeof(responseMsg)*100); //zero out array and make space
+    //
+    //   memset(buffer, 0, bufferSize);
+    //
+    //time(&start_t);
+    while(1){
+        puts("SDSDD");
+        while (true) {
+            int respStringLen = 0;
+            char returnBuffer[100];
+            unsigned int fromSize = sizeof(fromAddr);
+            if ((respStringLen = recvfrom(sock, returnBuffer, 100, 0,
                             (struct sockaddr *) &fromAddr, &fromSize)) < 1) 
             {
                 // Check to see if the socket timedout
@@ -319,36 +355,36 @@ void recvLarge(){
                 else
                     DieWithError("recvfrom() failed");
             }
-     
+
+        }
     }
 }
-  }
 
 void recvAckno(int timeout){}
 
 char* recvSmall(){
-  int recvSize;
-  responseMsg messy;
-  char buff[1000];
-  time_t start_t, end_t;
-  double diff_t; 
+    int recvSize;
+    responseMsg messy;
+    char buff[1000];
+    time_t start_t, end_t;
+    double diff_t; 
 
-  time(&start_t);
-  time(&end_t);
-  /*
-  while((diff_t = difftime(end_t, start_t)) < timeout){
-    if (recvSize = recvfrom(sock, buff, 1000, 0, 
-        (struct sockaddr *) &fromAddr) < 0){
-      fprintf(stderr, "recv() less than 0 bytes error or done");
-      //break;
+    time(&start_t);
+    time(&end_t);
+    /*
+       while((diff_t = difftime(end_t, start_t)) < timeout){
+       if (recvSize = recvfrom(sock, buff, 1000, 0, 
+       (struct sockaddr *) &fromAddr) < 0){
+       fprintf(stderr, "recv() less than 0 bytes error or done");
+    //break;
     }
     else {
-      //insert buffer into struct and take data into string and return
-      break;
+    //insert buffer into struct and take data into string and return
+    break;
     }
     time(&end);
-  }
-  */
+    }
+    */
 }
 
 
