@@ -1,22 +1,22 @@
-CC=gcc
-CFLAGS=-Wall -g -std=c99
+CC=clang
+CFLAGS=-Wall -g
 
 BINS=robotClient robotServer
 
 all: $(BINS)
 
 robotClient: robotClient.c
-	$(CC) $(CFLAGS) -o robotClient robotClient.c -lm
+	$(CC) $(CFLAGS) -o robotClient robotClient.c
 	
 robotServer: robotServer.c
-	$(CC) $(CFLAGS) -o robotServer robotServer.c -lm
+	$(CC) $(CFLAGS) -o robotServer robotServer.c
 
 clean:
 	rm robotClient robotServer
 	clear
 
 client:
-	./robotClient localhost 5022 2agreeable 1 4 
+	./robotClient localhost 5022 2agreeable 4 3
 
 server:
 	./robotServer 5022 130.127.192.62 2agreeable 5
