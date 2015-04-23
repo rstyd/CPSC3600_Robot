@@ -197,19 +197,24 @@ int main(int argc, char *argv[])
 
         printf("Requires %d messages\n", number);
         printf("Response Size: %d\n", responseSize);
-        if (command == MOVE || command == TURN || command == STOP) {
-            // Just send the header
-        }
-        
 
         int transmission = 1000 - sizeof(responseMsg) + sizeof(void *);
-        rm->data = malloc(transmission);
+        
+        if (command == MOVE || command == TURN || command == STOP) {
+            rm->data = NULL;
+            responseSize = sizeof(responseMsg);
+        }
+        else {
+            rm->data = malloc(transmission);
+        }
+
 
         while(sequence < number){
             rm->sequenceN = sequence;
             if (sequence == number - 1){
                 //rm->data = content + (responseSize % transmission);
-                memcpy(rm->data, content + offset, responseSize % transmission);
+                if (rm->data != NULL)
+                    memcpy(rm->data, content + offset, responseSize % transmission);
                 sendUDP(sockUDP, (unsigned char *)rm, (responseSize % transmission));
                 break;
             }

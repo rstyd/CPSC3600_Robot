@@ -21,6 +21,7 @@ void takeSnapshot();
 requestMsg *makeRequest(char *command);
 
 void AlarmHandler(int sig) {
+    puts("ALARMED BITCHES");
     waiting = 0;
 }
 
@@ -130,21 +131,19 @@ void moveRobot(int meters) {
     char command[15];
 
     sprintf(command, "MOVE %f", speed);    
-
     requestMsg *request = makeRequest(command);
     puts("Sending request"); 
     sendRequest(request);
-    puts("Starting timer");
+    recvRequest();
     startTimer(moveTime);
     // Waits for timeout
     puts("Reciveing request");
-    recvRequest(1);
     puts("Starting wait");
     // Waits for the movement time to go off 
-    while (1) {
+    while (waiting) {
 
     }
-    
+    puts("DONE");
     stopRobot(); 
 }
 
@@ -241,26 +240,43 @@ requestMsg *makeRequest(char *command) {
 
 void recvRequest(){
 //return array of response msg instead???
-  while(1){
     puts("SDSDD");
-    while (true) {
-        int respStringLen = 0;
-        char returnBuffer[100];
-        unsigned int fromSize = sizeof(fromAddr);
-        if ((respStringLen = recvfrom(sock, returnBuffer, 100, 0,
+    responseMsg *messages[100];  //array of response messages from server
+     
+    char returnBuffer[1000];
+    int respStringLen = 0;
+    
+    unsigned int fromSize = sizeof(fromAddr);
+    if ((respStringLen = recvfrom(sock, returnBuffer, 1000, 0,
                             (struct sockaddr *) &fromAddr, &fromSize)) < 1) 
             {
                 // Check to see if the socket timedout
                 if (errno == EAGAIN) {
-                    errno = 0;
-                    continue;
+                    fprintf(stderr, "NOOOOO");
+                    exit(1);
                 }
                 else
                     DieWithError("recvfrom() failed");
             }
-     
-    }
-}
+    
+    while (true) {
+        memset(returnBuffer, 0, 1000);
+
+        int respStringLen = 0;
+
+        if ((respStringLen = recvfrom(sock, returnBuffer, 1000, 0,
+                            (struct sockaddr *) &fromAddr, &fromSize)) < 1) 
+            {
+                // Check to see if the socket timedout
+                if (errno == EAGAIN) {
+                    fprintf(stderr, "NOOOOO");
+                    exit(1);
+                }
+                else
+                    DieWithError("recvfrom() failed");
+            }
+     }
+      
 }
 void recvLarge(){
   //--------variables-----------//
