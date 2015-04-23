@@ -9,7 +9,7 @@
 
 #define PI 3.141
 char *robotID;
-char *address;
+char *serverIP;
 int L, N;
 unsigned short port;
 int requestID = 0; 
@@ -44,13 +44,19 @@ void DieWithError(char *errMsg) {
 int main(int argc, char *argv[]) 
 {
     struct hostent *thehost;         // Hostent from gethostbyname()
-    char *serverIP;                    // Server Name
+    serverIP = argv[1];
+    port = atoi(argv[2]);
+    robotID = argv[3];
+    L = atoi(argv[4]);
+    N = atoi(argv[5]);
 
     // If we don't have all of the required command line arguments
+
     if (argc < 6) {
         printf("Usage: %s IP/Host_name serverPort robotID L N\n", argv[0]);
         exit(1);
     }
+    //
     // Construct the server address structure
     // zero out address structure
     memset(&middlewareAddr, 0, sizeof(middlewareAddr));
@@ -67,7 +73,6 @@ int main(int argc, char *argv[])
         middlewareAddr.sin_addr.s_addr = *((unsigned int *) thehost->h_addr_list[0]);
     }
 
-    getArguments(argv);
     
     if(sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP) < 0){
      perror("socket() failed");
@@ -90,19 +95,10 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-void getArguments(char **argv) {
-    address = argv[1];
-    port = atoi(argv[2]);
-    robotID = argv[3];
-    L = atoi(argv[4]);
-    N = atoi(argv[5]);
-
-}
-
 void takeSnapshot(int turn) {
-    char *imageFilename;
+    char imageFilename[15];
     sprintf(imageFilename, "image-%d.png", turn);
-    char *textFilename;
+    char textFilename[15];
     sprintf(textFilename, "position-%d.txt", turn);
 
     FILE *textFile = fopen(textFilename, "w");
@@ -110,6 +106,8 @@ void takeSnapshot(int turn) {
     char *DGPS = getDGPS();
     char *lasers = getLasers();
     
+    fprintf(textFile, "%s\n%s\n%s", GPS, DGPS, lasers);
+    fclose(textFile);
     getImage();
 }
 void moveRobot(int meters) {
@@ -122,6 +120,7 @@ void moveRobot(int meters) {
 
     requestMsg *request = makeRequest(command);
     sendRequest(request);
+        
     // Wait for 5 seconds to timeout
     sleep(5); //should wait for response instead??? 
     // Wait for 2 more seconds 
@@ -147,24 +146,30 @@ void stopRobot() {
 }
 
 char *getGPS() {
+    char *gpsData = malloc(30);
     char command[15];
     sprintf(command, "GET GPS");
     requestMsg *request = makeRequest(command);
     sendRequest(request);
+    return gpsData;
 }
 
 char *getDGPS() {
+    char *dgpsData = malloc(30);
     char command[15];
     sprintf(command, "GET DGPS");
     requestMsg *request = makeRequest(command);
     sendRequest(request);
+    return dgpsData;
 }
 
 char *getLasers() {
+    char *laserData = malloc(30);
     char command[15];
     sprintf(command, "GET LASERS");
     requestMsg *request = makeRequest(command);
     sendRequest(request);
+    return laserData;
 }
 
 // Gets an image from the robot
