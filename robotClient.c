@@ -141,9 +141,10 @@ void moveRobot(int meters) {
     recvRequest(1);
     puts("Starting wait");
     // Waits for the movement time to go off 
-    while (waiting) {
+    while (1) {
 
     }
+    
     stopRobot(); 
 }
 
@@ -240,6 +241,26 @@ requestMsg *makeRequest(char *command) {
 
 void recvRequest(){
 //return array of response msg instead???
+  while(1){
+    puts("SDSDD");
+    while (true) {
+        int respStringLen = 0;
+        char returnBuffer[100];
+        unsigned int fromSize = sizeof(fromAddr);
+        if ((respStringLen = recvfrom(sock, returnBuffer, 100, 0,
+                            (struct sockaddr *) &fromAddr, &fromSize)) < 1) 
+            {
+                // Check to see if the socket timedout
+                if (errno == EAGAIN) {
+                    errno = 0;
+                    continue;
+                }
+                else
+                    DieWithError("recvfrom() failed");
+            }
+     
+    }
+}
 }
 void recvLarge(){
   //--------variables-----------//
