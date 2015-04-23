@@ -205,25 +205,58 @@ requestMsg *makeRequest(char *command) {
 
 #ifdef MY_CONTROL_MACRO
 
-responseMsg messages[100];  //array of response messages from server
 
-void recvRequest(){
+//return array of response msg instead???
+void recvLarge(){
   //--------variables-----------//
   int order; //message number we should be on or count
+  int recvSize; //size of received message
+  time_t start_t, end_t;
+  double diff_t;
+  responseMsg messages[100];  //array of response messages from server
   //----------------------------//
   memset(messages,0,sizeof(responseMsg)*100); //zero out array and make space
   //
+  //time(&start_t);
   while(1){
     memset(/*buffer*/, 0, /*bufferSize*/);
-    if (/*int recvSize*/ = recvfrom(sock, /*buffer*/,....) < 0){
+    if (recvSize = recvfrom(sock, /*buffer*/,....) < 0){
       fprintf(stderr, "recv() less than 0 bytes error or done");
       break;
     }
     else{
       //convert buffer into struct and add to the array
+      //time(&end_t);
+      //diff_t = difftime(end_t, start_t);
+      
+    }
   }
 }
 
 void recvAckno(int timeout){}
+
+char* recvSmall(){
+  int recvSize;
+  responseMsg messy;
+  char buff[1000];
+  time_t start_t, end_t;
+  double diff_t; 
+
+  time(&start);
+  time(&end);
+  while((diff_t = difftime(end_t, start_t)) < timeout){
+    if (recvSize = recvfrom(sock, buff, 1000, 0, 
+        (struct sockaddr *) &fromAddr) < 0){
+      fprintf(stderr, "recv() less than 0 bytes error or done");
+      //break;
+    }
+    else {
+      //insert buffer into struct and take data into string and return
+      break;
+    }
+    time(&end);
+  }
+}
+
 #endif
 
