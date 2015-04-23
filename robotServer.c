@@ -259,7 +259,7 @@ void sendTCP(int sock, unsigned char *message, int size){
     puts("SDDS");
     fprintf(stderr, "Sending\n");
     printf("%s\n", message);
-    if ((send(sock, (char *)message, size, 0)) != size){
+    if ((send(sockTCP, (char *)message, size, 0)) != size){
         DieWithError("ERROR\tSent wrong # of bytes");
     }
     
@@ -280,10 +280,8 @@ unsigned char *recvTCP(){
     memcpy(cont, buffer, bytesRcvd);
     //printf("%s\n", buffer); 
     responseSize = bytesRcvd;
-    return cont; 
-
     close(sockTCP); 
-    return cont;            	
+    return cont;             	
 }
 
 void DieWithError(char *errorMessage)
