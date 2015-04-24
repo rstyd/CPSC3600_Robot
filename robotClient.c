@@ -83,9 +83,9 @@ int main(int argc, char *argv[])
     double angle = (PI * (N-2))/N; 
 
     int turn = 0;
-    takeSnapshot(turn);
+   // takeSnapshot(turn);
     // Draw the first Polygon
-   /* for (int i = 0; i < N; i++) {
+    for (int i = 0; i < N; i++) {
         printf("On turn: %d", i);
         // Move the robot L meters in the current direction then stop
         puts("MOVING ROBOT");
@@ -99,7 +99,7 @@ int main(int argc, char *argv[])
         //takeSnapshot(turn);
         turn++;
     }
-    */
+    moveRobot(0); 
     
 /*
     for (int i = 0; i < N - 1; i++) {
@@ -150,42 +150,22 @@ void takeSnapshot(int turn) {
     char *newLine = "\n";
 
     fprintf(textFile, "GPS %s\n DGPS %s\n Lasers %s\n", GPS, DGPS, lasers);
- //   fclose(textFile);
-  //  memcpy(textData, gpsPreface, 5);
- /*   int offset = 0;
-    offset += 4;
-    memcpy(textData + offset, GPS, gpsSize);
-    offset += gpsSize;
-    memcpy(textData + offset, newLine, 1); 
-    offset += 1;
-    memcpy(textData, dgpsPreface, 4);
-    offset += 4;
-    memcpy(textData + offset, DGPS, dgpsSize);
-    offset += dgpsSize;
-    memcpy(textData + offset, newLine, 1); 
-    offset += 1;
-    memcpy(textData, lasersPreface, 4);
-    offset += 4;
-    memcpy(textData + offset, lasers, lasersSize);
+    fclose(textFile);
 
-    fwrite(textData, 1, (4 * 3 + 2 + gpsSize + dgpsSize + lasersSize), textFile);
-*/
-    /*
     unsigned char *data;
     int imageSize; 
     data = getImage(&imageSize);
     printf("Image Size: %d\n", imageSize);
     FILE *imageFile = fopen(imageFilename, "wb"); 
-    fwrite(data, sizeof(int), imageSize, imageFile);
+    fwrite(data, 1, imageSize, imageFile);
     fclose(imageFile);
-    */
+
 }
 void moveRobot(int meters) {
     puts("Moving robot");
     // Compute the speed required for moving L meters in 7 seconds
     int moveTime = 5;
     double speed = (meters * 1.0)/moveTime;
-    speed = -1.0;
     char command[15];
     
 
@@ -207,7 +187,8 @@ void moveRobot(int meters) {
 void turnRobot(double angle) {
     puts("Turning Robot");
     char command[15];
-    int moveTime = 7;
+    int moveTime = 5;
+    angle = PI  - angle;
     double speed = angle/moveTime;
     sprintf(command, "TURN %f", speed);
     requestMsg *request = makeRequest(command);
@@ -216,7 +197,7 @@ void turnRobot(double angle) {
     unsigned char *data;
     int size;
     data = recvRequest(&size);
-
+    sleep(moveTime);
     stopRobot();
 }
 
@@ -372,7 +353,7 @@ unsigned char *recvRequest(int *size){
             puts("SETTING nMessages");
             nMessages = msg->nMessages; 
             if (nMessages > 1000) {
-                puts("DAmn that's a lot of messages"); 
+                puts("that's a lot of messages"); 
                // messages = realloc(messages, nMessages * 1000); 
             }
         }
