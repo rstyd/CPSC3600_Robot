@@ -25,7 +25,15 @@ void DieWithError(char *errorMessage);  /* External error handling function */
 void interupt(int sig);
 
 struct sockaddr_in receptionAddr; /* server address */
+
 struct sockaddr_in robotAddr;     /* Source address */
+struct sockaddr_in robotAddr_Image;
+struct sockaddr_in robotAddr_Dgps;
+struct sockaddr_in robotAddr_Gps;
+struct sockaddr_in robotAddr_Laser;
+struct sockaddr_in robotAddr_Move;
+struct sockaddr_in robotAddr_Turn;
+struct sockaddr_in robotAddr_Stop;
 
 requestMsg *getRequest(unsigned char *resp); 
 void resolveHost();
@@ -39,7 +47,10 @@ struct sockaddr_in clientAddr;
 
 int sockTCP;                        /* Socket descriptor */
 int sockTCP_IMAGE;
-int sockTCP_;
+int sockTCP_DGPS;
+int sockTCP_P2;
+int sockTCP_LASER;
+
 
 int sockUDP;
 
@@ -75,10 +86,17 @@ int main(int argc, char *argv[])
 
     printf("THE HOST IS %s\n", host);	
 
-    /* Create a TCP socket */
-    if ((sockTCP = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+    /* Create TCP sockets */
+    if ((sockTCP_IMAGE = socket(AF_INET, SOCK_STREAM, 0)) < 0)
         DieWithError("ERROR\tSocket Error");
-
+    if ((sockTCP_DGPS = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+        DieWithError("ERROR\tSocket Error");
+    if ((sockTCP_P2 = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+        DieWithError("ERROR\tSocket Error");
+    if ((sockTCP_LASER = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+        DieWithError("ERROR\tSocket Error");
+    
+    /*Create UDP socket*/
     if ((sockUDP = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
         DieWithError("ERROR\tSocket Error");
 
@@ -87,13 +105,30 @@ int main(int argc, char *argv[])
     receptionAddr.sin_family = AF_INET;         /* Internet addr family */
     receptionAddr.sin_port   = htons(serverPort);     /* Server port */
 
-    memset(&robotAddr, 0, sizeof(robotAddr));
-    robotAddr.sin_family = AF_INET;
-    robotAddr.sin_port = htons(serverPort);
+    /*Robot Adresses*/
+    memset(&robotAddr_Image, 0, sizeof(robotAddr));
+    robotAddr_Image.sin_family = AF_INET;
+    robotAddr_Image.sin_port = htons(serverPort);
+    robotAddr_Image.sin_addr.s_addr = inet_addr(servIP);
+    robotAddr.sin_port = htons(8081);
 
-    /*Server IP address*/
-    robotAddr.sin_addr.s_addr = inet_addr(servIP);
+    memset(&robotAddr_Dgps, 0, sizeof(robotAddr));
+    robotAddr_Dgps.sin_family = AF_INET;
+    robotAddr_Dgps.sin_port = htons(serverPort);
+    robotAddr_Dgps.sin_addr.s_addr = inet_addr(servIP);
+    robotAddr.sin_port = htons(8084);
 
+    memset(&robotAddr_P2, 0, sizeof(robotAddr));    /*Works for: GPS, Move, Turn, Stop*/
+    robotAddr_Gps.sin_family = AF_INET;
+    robotAddr_Gps.sin_port = htons(serverPort);
+    robotAddr_Gps.sin_addr.s_addr = inet_addr(servIP);
+    robotAddr.sin_port = htons(8082);
+
+    memset(&robotAddr_Laser, 0, sizeof(robotAddr));
+    robotAddr_Laser.sin_family = AF_INET;
+    robotAddr_Laser.sin_port = htons(serverPort);
+    robotAddr_Laser.sin_addr.s_addr = inet_addr(servIP);
+    robotAddr.sin_port = htons(8083);
 
     /*Resolving address if need be*/
     if (robotAddr.sin_addr.s_addr == -1) {
@@ -105,9 +140,23 @@ int main(int argc, char *argv[])
     if (bind(sockUDP, (struct sockaddr *) 
                 &receptionAddr, sizeof(receptionAddr)) < 0)
         DieWithError("bind() failed");
-    
-   if(connect(sockTCP, (struct sockaddr *)
-                &robotAddr, sizeof(robotAddr)) < 0){
+   
+   //Connect TCP Sockets// 
+  
+   if(connect(sockTCP_IMAGE, (struct sockaddr *)
+                &robotAddr_Image, sizeof(robotAddr)) < 0){
+        DieWithError("ERROR\tUnable to connect");
+         }
+   if(connect(sockTCP_DGPS, (struct sockaddr *)
+                &robotAddr_Dgps, sizeof(robotAddr)) < 0){
+        DieWithError("ERROR\tUnable to connect");
+         }
+   if(connect(sockTCP_P2, (struct sockaddr *)
+                &robotAddr_P2, sizeof(robotAddr)) < 0){
+        DieWithError("ERROR\tUnable to connect");
+         }
+   if(connect(sockTCP_LASER, (struct sockaddr *)
+                &robotAddr_Laser, sizeof(robotAddr)) < 0){
         DieWithError("ERROR\tUnable to connect");
          }
  
@@ -128,24 +177,20 @@ int main(int argc, char *argv[])
         if(strstr(cmd, "IMAGE") != NULL){
             command = IMAGE;
             page = imageAddr;
-            robotAddr.sin_port = htons(8081);
         }
         if(strstr(cmd, "DGPS") != NULL){
             command = DGPS;
             puts("DGPS");
             page = dGPS;
-            robotAddr.sin_port = htons(8084);
         }else if(strstr(cmd, "GPS") != NULL){
             command = GPS;
             puts("GPS");
             page = action;
-            robotAddr.sin_port = htons(8082);
         }
         if(strstr(cmd, "LASERS") != NULL){
             command = LASERS;
             puts("LASERS");
             page = lasers;
-            robotAddr.sin_port = htons(8083);
         }
         if(strstr(cmd, "MOVE") != NULL){
             command = MOVE;
@@ -154,7 +199,6 @@ int main(int argc, char *argv[])
             strtok(cmd, " ");
             char *vel = strtok(NULL, " ");
             page = strcat(page, vel);
-            robotAddr.sin_port = htons(8082);
         }
         if(strstr(cmd, "TURN") != NULL){
             command = TURN;
@@ -163,13 +207,11 @@ int main(int argc, char *argv[])
             strtok(cmd, " ");
             char *vel = strtok(NULL, " ");
             page = strcat(page, vel);
-            robotAddr.sin_port = htons(8082);
         }
         if(strstr(cmd, "STOP") != NULL){
             command = STOP;
             page = action;
             page = strcat(page, "&lx=0");
-            robotAddr.sin_port = htons(8082);
         }
 
         char *query = malloc(sizeof(char) * 500);
