@@ -49,15 +49,15 @@ int main(int argc, char *argv[])
     robotID = argv[3];
     L = atoi(argv[4]);
     N = atoi(argv[5]);
-
-    printf("Server IP: %s Port %d robotID: %s L %d N %d\n", serverIP, port, robotID, L, N);
-    // If we don't have all of the required command line arguments
-
     if (argc < 6) {
         printf("Usage: %s IP/Host_name serverPort robotID L N\n", argv[0]);
         exit(1);
     }
-    //
+ 
+    printf("Server IP: %s Port %d robotID: %s L %d N %d\n", serverIP, port, robotID, L, N);
+    // If we don't have all of the required command line arguments
+
+   //
     // Construct the server address structure
     // zero out address structure
     memset(&middlewareAddr, 0, sizeof(middlewareAddr));
@@ -80,12 +80,12 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    double angle = (PI * (N-2))/N; 
+    double angle = ((PI * (N-2))/N); 
 
     int turn = 0;
     takeSnapshot(turn);
     // Draw the first Polygon
-    /*for (int i = 0; i < N; i++) {
+    for (int i = 0; i < N; i++) {
         printf("On turn: %d", i);
         // Move the robot L meters in the current direction then stop
         puts("MOVING ROBOT");
@@ -95,13 +95,13 @@ int main(int argc, char *argv[])
         turnRobot(angle);
         // Get all of the data from the robot
         requestID++;
-        puts("TAKING SNAPSHOT");
-        //takeSnapshot(turn);
         turn++;
+        takeSnapshot(turn);
     }
-    moveRobot(0);*/ 
+    moveRobot(0);
     
-/*
+    
+
     for (int i = 0; i < N - 1; i++) {
         printf("On turn: %d", i);
         // Move the robot L meters in the current direction then stop
@@ -113,10 +113,11 @@ int main(int argc, char *argv[])
         // Get all of the data from the robot
         requestID++;
         puts("TAKING SNAPSHOT");
-        //takeSnapshot(turn);
+        takeSnapshot(turn);
         turn++;
      }
-*/
+    moveRobot(0);
+
     return 0;
 }
 
@@ -152,6 +153,7 @@ void takeSnapshot(int turn) {
     fprintf(textFile, "GPS %s\n DGPS %s\n Lasers %s\n", GPS, DGPS, lasers);
     fclose(textFile);
 
+
     unsigned char *data;
     int imageSize; 
     data = getImage(&imageSize);
@@ -160,6 +162,7 @@ void takeSnapshot(int turn) {
     fwrite(data, 1, imageSize, imageFile);
     fclose(imageFile);
 
+
 }
 void moveRobot(int meters) {
     puts("Moving robot");
@@ -167,8 +170,6 @@ void moveRobot(int meters) {
     int moveTime = 5;
     double speed = (meters * 1.0)/moveTime;
     char command[15];
-    
-
     sprintf(command, "MOVE %f", speed);    
     requestMsg *request = makeRequest(command);
     puts("Sending request"); 
@@ -188,17 +189,18 @@ void turnRobot(double angle) {
     puts("Turning Robot");
     char command[15];
     int moveTime = 5;
-    angle = PI  - angle;
+
+    angle = PI - angle;
     double speed = angle/moveTime;
     sprintf(command, "TURN %f", speed);
     requestMsg *request = makeRequest(command);
-
     sendRequest(request);
     unsigned char *data;
     int size;
     data = recvRequest(&size);
     sleep(moveTime);
-    stopRobot();
+
+   stopRobot();
 }
 
 void stopRobot() {
@@ -210,7 +212,6 @@ void stopRobot() {
     unsigned char *data;
     int size;
     data = recvRequest(&size);
-
 }
 
 unsigned char *getGPS(int *size) {
@@ -361,14 +362,13 @@ unsigned char *recvRequest(int *size){
         messagesRcvd++;
     }
      
-     
     for (int i = 0; i < nMessages; i++) {
         if (messages[i] == NULL) {
             fprintf(stderr, "Did not get all the messages required\n");
             exit(1); 
         }
     }
-    
+    fileSize += 12; 
     printf("Recieved Filesize: %d\n", fileSize);
     
     data = malloc(fileSize);

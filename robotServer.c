@@ -1,4 +1,3 @@
-#include <netdb.h>      /* for getHostByName() */
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -43,7 +42,6 @@ int sockTCP;
 int sockUDP;
 
 int responseSize;	
-
 struct hostent *thehost;         /* Hostent from gethostbyname() */
 
 char *servIP;
@@ -64,10 +62,30 @@ int main(int argc, char *argv[])
     char *id, *imageID;
     //	char *tok; //, *host = (char *)malloc(SENDMAX);
 
+    //char *imageAddr2 = "robot_50000";//8081
+    //char *imageAddr = malloc(strlen(imageAddr2 + 30));
+    
+
+/*    char *imageAddr3 = "/snapshot?topic=/robot_5/image?width=600?height=500";//8081*/
+/*    char *action3 = "/twist?id=2agreeable";//8082 move: &lx=, turn: &az=, stop: &lx=0*/
+/*    char *dGPS3 = "/state?id=2agreeable";//8084*/
+/*    char *lasers3 = "/state?id=2agreeable";//8083*/
+
+
+
+
+/*char *imageAddr = "/snapshot?topic=/robot_5/image?width=600?height=500";//8081*/
+/*char *action = "/twist?id=2agreeable";//8082 move: &lx=, turn: &az=, stop: &lx=0*/
+/*char *dGPS = "/state?id=2agreeable";//8084*/
+/*char *lasers = "/state?id=2agreeable";//8083*/
+
     id = argv[3];
     imageID = argv[4];
     char *imageAddr = malloc(100);
     sprintf(imageAddr, "/snapshot?topic=/robot_%s/image?width=600?height=500", imageID);
+
+
+
    char *action = malloc(100);//"/twist?id=";
     sprintf(action, "/twist?id=%s", id); 
     char *dGPS = malloc(100);
@@ -76,8 +94,12 @@ int main(int argc, char *argv[])
 
     char *lasers = malloc(100);//8083
 	sprintf(lasers, "/state?id=%s", id);
+	
+	printf("addr: %s\naction :%s\ndGPS: %s\nlasers: %s\n",imageAddr, action, dGPS, lasers);
+/*	char *GPS = malloc(100);*/
+/*	sprintf(GPS, "/state?id=%s", id);*/
 
-    servIP[0] = 0;
+ servIP[0] = 0;
     servIP = argv[2];
     serverPort = atoi(argv[1]);
     printf("Port: %hu Ip %s ID %s imageID %s", serverPort, servIP, id, imageID);
@@ -106,6 +128,7 @@ int main(int argc, char *argv[])
         resolveHost();
     }
     
+        //printf("NUMBA%d\n", number);
     receptionAddr.sin_addr.s_addr = htonl(INADDR_ANY);
 
     if (bind(sockUDP, (struct sockaddr *) 
@@ -186,7 +209,7 @@ int main(int argc, char *argv[])
 
         char *query = malloc(sizeof(char) * 500);
         sprintf(query, 
-                "GET %s HTTP/1.1\r\n"
+                "GET %s HTTP/1.0\r\n"
                 "User-Agent: wget/1.14 (linux-gnu)\r\n"
                 "Host: %s\r\n"
                 "Connection: Keep-Alive\r\n"
@@ -224,13 +247,17 @@ int main(int argc, char *argv[])
         }
         content = content + 4;
         
+
+        if (command == IMAGE) {
+        } else {
+
+        }
+        printf("ORIGINAL RESPONSE: %d\n", responseSize);
         responseSize -= content - response;
         //printf("Content: %s\n", content);
         struct response_message *rm = (struct response_message *) malloc(sizeof( struct response_message));
         unsigned char *data;
         int number = ceil(1.0 * responseSize/(1000 - sizeof(struct response_message)));
-        puts("PPP");
-        printf("NUMBA%d\n", number);
         rm->nMessages = number; 
         int sequence = 0;
         int offset = 0;
@@ -245,19 +272,20 @@ int main(int argc, char *argv[])
         while(sequence < number){
               rm->sequenceN = sequence;
              rm->nMessages = number;
-                       printf("NUM %d\n", rm->nMessages );
-            printf("SEQ: %d\n", rm->sequenceN);
+            int fSize = transmission - responseSize;
             if (sequence == number - 1){
                 memcpy(rm->data, content + offset, (responseSize % transmission));
                 memcpy(buff, &newRequest->commID, 5); 
                 memcpy(buff + 4, &rm->nMessages, 4);
                 memcpy(buff + 8, &rm->sequenceN, 4);
-                memcpy(buff + 12, rm->data, responseSize % transmission);
+                memcpy(buff + 12, rm->data, (responseSize % transmission));
                 //memcpy(rm->data, content + offset, (responseSize % transmission));
                // memcpy(buff + 12, content + offset, (responseSize % transmission) + 12);
+
+                sendUDP(sockUDP, buff, (responseSize % transmission) + 12 );
+
                 printf("STRLEN%zu\n", strlen(rm->data));
                 printf("THIS IS A MESSAGE%sSDLS\n", buff + 12);
-                sendUDP(sockUDP, buff, (responseSize % transmission) + 12);
                 break;
             }
            // memcpy(buff + 12, content + offset, transmission);
