@@ -98,7 +98,6 @@ int main(int argc, char *argv[])
        // takeSnapshot(turn);
         turn++;
     }
-    
     moveRobot(0);
 //    stopRobot();
     
@@ -154,7 +153,8 @@ void takeSnapshot(int turn) {
 
     fprintf(textFile, "GPS %s\n DGPS %s\n Lasers %s\n", GPS, DGPS, lasers);
     fclose(textFile);
-    
+
+
     unsigned char *data;
     int imageSize; 
     data = getImage(&imageSize);
@@ -162,7 +162,8 @@ void takeSnapshot(int turn) {
     FILE *imageFile = fopen(imageFilename, "wb"); 
     fwrite(data, 1, imageSize, imageFile);
     fclose(imageFile);
-    
+
+
 }
 void moveRobot(int meters) {
     puts("Moving robot");
@@ -189,6 +190,7 @@ void turnRobot(double angle) {
     puts("Turning Robot");
     char command[15];
     int moveTime = 5;
+
     angle = PI - angle;
     double speed = angle/moveTime;
     sprintf(command, "TURN %f", speed);
@@ -198,6 +200,7 @@ void turnRobot(double angle) {
     int size;
     data = recvRequest(&size);
     sleep(moveTime);
+
    stopRobot();
 }
 
@@ -352,7 +355,7 @@ unsigned char *recvRequest(int *size){
             puts("SETTING nMessages");
             nMessages = msg->nMessages; 
             if (nMessages > 1000) {
-                puts("DAmn that's a lot of messages"); 
+                puts("that's a lot of messages"); 
                // messages = realloc(messages, nMessages * 1000); 
             }
         }

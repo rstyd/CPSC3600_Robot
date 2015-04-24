@@ -84,6 +84,7 @@ int main(int argc, char *argv[])
     sprintf(imageAddr, "/snapshot?topic=/robot_%s/image?width=600?height=500", imageID);
 
 
+
    char *action = malloc(100);//"/twist?id=";
     sprintf(action, "/twist?id=%s", id); 
     char *dGPS = malloc(100);
@@ -246,12 +247,13 @@ int main(int argc, char *argv[])
         }
         content = content + 4;
         
+
         if (command == IMAGE) {
         } else {
 
         }
         printf("ORIGINAL RESPONSE: %d\n", responseSize);
-        responseSize -= content - response; 
+        responseSize -= content - response;
         //printf("Content: %s\n", content);
         struct response_message *rm = (struct response_message *) malloc(sizeof( struct response_message));
         unsigned char *data;
@@ -279,7 +281,11 @@ int main(int argc, char *argv[])
                 memcpy(buff + 12, rm->data, (responseSize % transmission));
                 //memcpy(rm->data, content + offset, (responseSize % transmission));
                // memcpy(buff + 12, content + offset, (responseSize % transmission) + 12);
+
                 sendUDP(sockUDP, buff, (responseSize % transmission) + 12 );
+
+                printf("STRLEN%zu\n", strlen(rm->data));
+                printf("THIS IS A MESSAGE%sSDLS\n", buff + 12);
                 break;
             }
            // memcpy(buff + 12, content + offset, transmission);
