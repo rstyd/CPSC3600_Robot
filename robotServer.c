@@ -86,8 +86,8 @@ int main(int argc, char *argv[])
     char *lasers = malloc(100);//8083
 	sprintf(lasers, "/state?id=%s", id);
 	
-	char *GPS = malloc(100);
-	sprintf(GPS, "/state?id=%s", id);
+/*	char *GPS = malloc(100);*/
+/*	sprintf(GPS, "/state?id=%s", id);*/
 
  servIP[0] = 0;
     servIP = argv[2];
