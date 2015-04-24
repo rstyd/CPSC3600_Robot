@@ -4,20 +4,22 @@
 Group Members: Rusty Davis, David Johnson, Sean Southard, Bradley Briggs
 
 
-Robot ID: 2agreeable Image_Id: 5
+Robot ID: 2agreeable 
+Image_Id: 5
 
 
 Description:
-	The purpose of this program is to create a HTTP/UDP client server program to interact with a given robot. In addition to its interaction with the robot it should be able to communicate with other server clients programs of other groups in the class. 
+	The purpose of this program is to create a HTTP/UDP client server program to interact with a given robot. 
+	In addition to its interaction with the robot it should be able to communicate with other 
+		server clients programs of other groups in the class. 
 
 
 
 KNOWN PROBLEMS:
-One particular problem that our program faces is that we can download images, but they end up getting corrupted. 
-It seems like the TCP server is not sending the correct amount of data. 
-
-In addition, the host is set as castara.cs.clemson.edu; any attempt to resolve
+The host is set as castara.cs.clemson.edu; any attempt to resolve
 the ip address of castara gives some server in France.
+
+
 
 DESIGN:
 We based our program off of the design featured in the Supplementary Specification and Final Project Specification on Piazza. Unfrotunately, these two documents often conflict each other. We decided to pick a mixture of the two that would work for our needs. 
