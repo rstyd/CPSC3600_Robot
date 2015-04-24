@@ -230,27 +230,33 @@ int main(int argc, char *argv[])
 
         int transmission = 1000 - sizeof(responseMsg) + sizeof(void *);
         unsigned char *buff = malloc(1000);
-        //rm->data = malloc(transmission);
+        rm->data = malloc(transmission);
 
         while(sequence < number){
-             // rm->sequenceN = sequence;
-            // rm->nMessages = number;
-            memcpy(buff, &newRequest->commID, 4); 
-            memcpy(buff + 4, &number, 4);
-            memcpy(buff + 8, &sequence, 4);
-            printf("NUM %d\n", *((unsigned int *)buff + 4) = 1);
-            printf("SEQ: %d\n", *((unsigned int *)(buff + 8)));
+              rm->sequenceN = sequence;
+             rm->nMessages = number;
+                       printf("NUM %d\n", rm->nMessages );
+            printf("SEQ: %d\n", rm->sequenceN);
             if (sequence == number - 1){
-               // rm->data = content + (responseSize % transmission);
+                memcpy(rm->data, content + offset, (responseSize % transmission));
+                memcpy(buff, &newRequest->commID, 5); 
+                memcpy(buff + 4, &rm->nMessages, 4);
+                memcpy(buff + 8, &rm->sequenceN, 4);
+                memcpy(buff + 12, rm->data, responseSize % transmission);
                 //memcpy(rm->data, content + offset, (responseSize % transmission));
-                memcpy(buff + 12, content + offset, (responseSize % transmission) + 12);
-                printf("STRLEN%zu\n", strlen(buff + 12));
-                printf("THIS IS A MESSAGE%s\n", buff + 12);
-                sendUDP(sockUDP, (unsigned char *)buff, (responseSize % transmission) + 12);
+               // memcpy(buff + 12, content + offset, (responseSize % transmission) + 12);
+                printf("STRLEN%zu\n", strlen(rm->data));
+                printf("THIS IS A MESSAGE%sSDLS\n", buff + 12);
+                sendUDP(sockUDP, buff, (responseSize % transmission) );
                 break;
             }
-            memcpy(buff + 12, content + offset, transmission);
+           // memcpy(buff + 12, content + offset, transmission);
+            memcpy(rm->data, content + offset, (transmission));
             offset += transmission;
+            memcpy(buff, &newRequest->commID, 4); 
+            memcpy(buff + 4, &rm->nMessages, 4);
+            memcpy(buff + 8, &rm->sequenceN, 4);
+            memcpy(buff + 12, rm->data, transmission);
             sendUDP(sockUDP, buff, 1000);
             sequence++;
             memset(buff, 0, 1000);

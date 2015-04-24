@@ -83,9 +83,9 @@ int main(int argc, char *argv[])
     double angle = (PI * (N-2))/N; 
 
     int turn = 0;
-    //takeSnapshot(turn);
+    takeSnapshot(turn);
     // Draw the first Polygon
-    for (int i = 0; i < N; i++) {
+   /* for (int i = 0; i < N; i++) {
         printf("On turn: %d", i);
         // Move the robot L meters in the current direction then stop
         puts("MOVING ROBOT");
@@ -99,6 +99,7 @@ int main(int argc, char *argv[])
         //takeSnapshot(turn);
         turn++;
     }
+    */
     
 /*
     for (int i = 0; i < N - 1; i++) {
@@ -148,7 +149,7 @@ void takeSnapshot(int turn) {
     char *lasersPreface = "Lasers ";
     char *newLine = "\n";
 
-    fprintf(textFile, "GPS %s\n DGPS %s\n", GPS, DGPS);
+    fprintf(textFile, "GPS %s\n DGPS %s\n Lasers %s\n", GPS, DGPS, lasers);
  //   fclose(textFile);
   //  memcpy(textData, gpsPreface, 5);
  /*   int offset = 0;
@@ -357,19 +358,15 @@ unsigned char *recvRequest(int *size){
 
         fileSize += respStringLen - 12;
         responseMsg *msg = malloc(sizeof(responseMsg));     
-        unsigned int *num;
-        num = (unsigned int *)returnBuffer;
-        msg->requestID = *num;
-        num = (unsigned int *)returnBuffer + 4;
-        msg->nMessages = *num;
-        num = (unsigned int *)returnBuffer + 8;
-        msg->sequenceN = *num;
-
-        printf("ID: %d SEQ: %d nMessages: %d\n", msg->requestID, msg->sequenceN, msg->nMessages);
         msg->data = malloc(988);
+        memcpy(&msg->requestID, returnBuffer, 4); 
+        memcpy(&msg->nMessages, returnBuffer + 4, 4);
+        memcpy(&msg->sequenceN,returnBuffer + 8,  4);
+        memcpy(msg->data, returnBuffer + 12, respStringLen - 12);
+        
+        printf("ID: %d SEQ: %d nMessages: %d\n", msg->requestID, msg->sequenceN, msg->nMessages);
         printf("LENGTH %d\n", respStringLen);
         printf("STRING LANGTH%d\n", respStringLen - 12);
-        strcpy(msg->data, returnBuffer + 12);
         printf("%s\n", (char *) returnBuffer + 12);
         if (nMessages == -1)  {
             puts("SETTING nMessages");
