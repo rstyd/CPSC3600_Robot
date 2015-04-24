@@ -176,7 +176,7 @@ int main(int argc, char *argv[])
 
         char *query = malloc(sizeof(char) * 500);
         sprintf(query, 
-                "GET %s HTTP/1.1\r\n"
+                "GET %s HTTP/1.0\r\n"
                 "User-Agent: wget/1.14 (linux-gnu)\r\n"
                 "Host: %s\r\n"
                 "Connection: Keep-Alive\r\n"
@@ -214,7 +214,12 @@ int main(int argc, char *argv[])
         }
         content = content + 4;
         
-        responseSize = strlen(content);
+        if (command == IMAGE) {
+        } else {
+
+        }
+        printf("ORIGINAL RESPONSE: %d\n", responseSize);
+        responseSize -= content - response; 
         //printf("Content: %s\n", content);
         struct response_message *rm = (struct response_message *) malloc(sizeof( struct response_message));
         unsigned char *data;
@@ -236,18 +241,19 @@ int main(int argc, char *argv[])
               rm->sequenceN = sequence;
              rm->nMessages = number;
                        printf("NUM %d\n", rm->nMessages );
+            int fSize = transmission - responseSize;
             printf("SEQ: %d\n", rm->sequenceN);
             if (sequence == number - 1){
                 memcpy(rm->data, content + offset, (responseSize % transmission));
                 memcpy(buff, &newRequest->commID, 5); 
                 memcpy(buff + 4, &rm->nMessages, 4);
                 memcpy(buff + 8, &rm->sequenceN, 4);
-                memcpy(buff + 12, rm->data, responseSize % transmission);
+                memcpy(buff + 12, rm->data, (responseSize % transmission));
                 //memcpy(rm->data, content + offset, (responseSize % transmission));
                // memcpy(buff + 12, content + offset, (responseSize % transmission) + 12);
                 printf("STRLEN%zu\n", strlen(rm->data));
                 printf("THIS IS A MESSAGE%sSDLS\n", buff + 12);
-                sendUDP(sockUDP, buff, (responseSize % transmission) );
+                sendUDP(sockUDP, buff, (responseSize % transmission) + 12 );
                 break;
             }
            // memcpy(buff + 12, content + offset, transmission);
@@ -324,10 +330,13 @@ unsigned char *recvTCP(int sock){
     fprintf(stderr, "getting response from robot\n");
     char buffer[20000];
     int bytesRcvd;
-    if ((bytesRcvd = recv(sock, buffer, 20000, 0)) <= 0) {
-        DieWithError("recvFailed");
-    }
 
+   
+    while (1) {
+        if ((bytesRcvd = recv(sock, buffer, 20000, 0)) <= 0) {
+            DieWithError("recvFailed");
+        }
+    }
     //printf("GOT %d\n", bytesRcvd);
     unsigned char *cont = malloc(bytesRcvd);
     memcpy(cont, buffer, bytesRcvd);
