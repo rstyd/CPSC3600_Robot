@@ -148,9 +148,9 @@ void takeSnapshot(int turn) {
     char *lasersPreface = "Lasers ";
     char *newLine = "\n";
 
-//    fprintf(textFile, "GPS %s\n DGPS %s\n", GPS, DGPS);
+    fprintf(textFile, "GPS %s\n DGPS %s\n", GPS, DGPS);
  //   fclose(textFile);
-    memcpy(textData, gpsPreface, 5);
+  //  memcpy(textData, gpsPreface, 5);
  /*   int offset = 0;
     offset += 4;
     memcpy(textData + offset, GPS, gpsSize);
@@ -357,15 +357,20 @@ unsigned char *recvRequest(int *size){
 
         fileSize += respStringLen - 12;
         responseMsg *msg = malloc(sizeof(responseMsg));     
-        memcpy(&msg->requestID, &returnBuffer, 4);
-        memcpy(&msg->nMessages, &returnBuffer + 4, 4);
-        memcpy(&msg->sequenceN, &returnBuffer + 8, 4);
+        unsigned int *num;
+        num = (unsigned int *)returnBuffer;
+        msg->requestID = *num;
+        num = (unsigned int *)returnBuffer + 4;
+        msg->nMessages = *num;
+        num = (unsigned int *)returnBuffer + 8;
+        msg->sequenceN = *num;
+
         printf("ID: %d SEQ: %d nMessages: %d\n", msg->requestID, msg->sequenceN, msg->nMessages);
         msg->data = malloc(988);
         printf("LENGTH %d\n", respStringLen);
-
-        memcpy(msg->data, &returnBuffer + 12, respStringLen - 12);
-
+        printf("STRING LANGTH%d\n", respStringLen - 12);
+        strcpy(msg->data, returnBuffer + 12);
+        printf("%s\n", (char *) returnBuffer + 12);
         if (nMessages == -1)  {
             puts("SETTING nMessages");
             nMessages = msg->nMessages; 

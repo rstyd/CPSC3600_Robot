@@ -219,6 +219,8 @@ int main(int argc, char *argv[])
         struct response_message *rm = (struct response_message *) malloc(sizeof( struct response_message));
         unsigned char *data;
         int number = ceil(1.0 * responseSize/(1000 - sizeof(struct response_message)));
+        puts("PPP");
+        printf("NUMBA%d\n", number);
         rm->nMessages = number; 
         int sequence = 0;
         int offset = 0;
@@ -231,17 +233,20 @@ int main(int argc, char *argv[])
         //rm->data = malloc(transmission);
 
         while(sequence < number){
-            //rm->sequenceN = sequence;
-            //rm->nMessages = number;
+             // rm->sequenceN = sequence;
+            // rm->nMessages = number;
             memcpy(buff, &newRequest->commID, 4); 
             memcpy(buff + 4, &number, 4);
             memcpy(buff + 8, &sequence, 4);
+            printf("NUM %d\n", *((unsigned int *)buff + 4) = 1);
             printf("SEQ: %d\n", *((unsigned int *)(buff + 8)));
             if (sequence == number - 1){
-                //rm->data = content + (responseSize % transmission);
+               // rm->data = content + (responseSize % transmission);
                 //memcpy(rm->data, content + offset, (responseSize % transmission));
                 memcpy(buff + 12, content + offset, (responseSize % transmission) + 12);
-                sendUDP(sockUDP, (unsigned char *)rm, (responseSize % transmission) + 12);
+                printf("STRLEN%zu\n", strlen(buff + 12));
+                printf("THIS IS A MESSAGE%s\n", buff + 12);
+                sendUDP(sockUDP, (unsigned char *)buff, (responseSize % transmission) + 12);
                 break;
             }
             memcpy(buff + 12, content + offset, transmission);
