@@ -30,12 +30,12 @@ void stopRobot();
 void startTimer(int seconds);
 void turnRobot(double angle);
 void sendRequest(requestMsg *request);
-char *getGPS();
-char *getDGPS();
-char *getLasers();
+int getGPS(unsigned char **data);
+int getDGPS(unsigned char **data);
+int getLasers(unsigned char **data);
 
-void getImage();
-void *recvRequest();
+int getImage(unsigned char **data);
+int recvRequest(unsigned char **data);
 int sock;
 
 struct sockaddr_in middlewareAddr;  // Local Address
@@ -75,7 +75,6 @@ int main(int argc, char *argv[])
 
     // Get the actual name of the host if given an IP address
     if (middlewareAddr.sin_addr.s_addr == -1){
-        puts("PI");
         thehost = gethostbyname(serverIP);
         middlewareAddr.sin_addr.s_addr = *((unsigned long *) thehost->h_addr_list[0]);
     }
@@ -89,9 +88,10 @@ int main(int argc, char *argv[])
     double angle = (PI * (N-2))/N; 
 
     int turn = 0;
-    takeSnapshot(turn);
+    //takeSnapshot(turn);
     // Draw the first Polygon
     for (int i = 0; i < N; i++) {
+        printf("On turn: %d", i);
         // Move the robot L meters in the current direction then stop
         puts("MOVING ROBOT");
         moveRobot(L);
@@ -101,7 +101,8 @@ int main(int argc, char *argv[])
         // Get all of the data from the robot
         requestID++;
         puts("TAKING SNAPSHOT");
-        takeSnapshot(turn);
+        //takeSnapshot(turn);
+        turn++;
     }
     return 0;
 }
@@ -111,43 +112,60 @@ void startTimer(int seconds) {
 }
 
 void takeSnapshot(int turn) {
+    puts("Taking snapshot");
     char imageFilename[15];
     sprintf(imageFilename, "image-%d.png", turn);
     char textFilename[15];
     sprintf(textFilename, "position-%d.txt", turn);
 
-    FILE *textFile = fopen(textFilename, "w");
-    char *GPS = getGPS();
-    char *DGPS = getDGPS();
-    char *lasers = getLasers();
-    fprintf(textFile, "%s\n%s\n%s", GPS, DGPS, lasers);
+    FILE *textFile = fopen(textFilename, "wb");
+    unsigned char  *GPS, *DGPS, *lasers;
+    int gpsSize = getGPS(&GPS);
+    printf("%d\n", gpsSize);
+    int dgpsSize = getDGPS(&DGPS);
+    int lasersSize= getLasers(&lasers);
+    printf("gps %d  dgps %d lasers %d\n", gpsSize, dgpsSize, lasersSize);
+ /*   fprintf(textFile, "GPS "); 
+    fwrite(GPS, gpsSize, 1, textFile);
+    fprintf(textFile, "\ndGPS "); 
+    fwrite(DGPS, dgpsSize, 1, textFile);
+    fprintf(textFile, "\nlasers "); 
+    fwrite(lasers, lasersSize, 1, textFile);
+    fprintf(textFile, "\n"); 
     fclose(textFile);
-    getImage();
+*/
+    unsigned char *data;
+    int imageSize = getImage(&data);
+    printf("Image Size: %d\n", imageSize);
+    FILE *imageFile = fopen(imageFilename, "wb"); 
+ //   fwrite(data, imageSize, 1, imageFile);
+    fclose(imageFile);
 }
 void moveRobot(int meters) {
+    puts("Moving robot");
     // Compute the speed required for moving L meters in 7 seconds
     int moveTime = 5;
-    double speed = meters/moveTime;
+    double speed = (meters * 1.0)/moveTime;
+    speed = -1.0;
     char command[15];
+    
 
     sprintf(command, "MOVE %f", speed);    
     requestMsg *request = makeRequest(command);
     puts("Sending request"); 
     sendRequest(request);
-    recvRequest();
-    startTimer(moveTime);
-    // Waits for timeout
+    void *data;
+    int size = recvRequest(data);
     puts("Reciveing request");
     puts("Starting wait");
     // Waits for the movement time to go off 
-    while (waiting) {
-
-    }
+    sleep(5); 
     puts("DONE");
     stopRobot(); 
 }
 
 void turnRobot(double angle) {
+    puts("Turning Robot");
     char command[15];
     sprintf(command, "TURN %f", angle);
     int moveTime = 7;
@@ -158,46 +176,54 @@ void turnRobot(double angle) {
 }
 
 void stopRobot() {
+    puts("Stopping robot");
     char command[15];
     sprintf(command, "STOP");
     requestMsg *request = makeRequest(command);
     sendRequest(request);
 }
 
-char *getGPS() {
-    char *gpsData = malloc(30);
+int getGPS(unsigned char **data) {
+    puts("Getting GPS");
     char command[15];
     sprintf(command, "GET GPS");
     requestMsg *request = makeRequest(command);
     sendRequest(request);
-    recvRequest();
-    return gpsData;
+    int dataSize = recvRequest(data);
+    return dataSize;
 }
 
-char *getDGPS() {
+int getDGPS(unsigned char **data) {
+    puts("Getting DGPS");
     char *dgpsData = malloc(30);
     char command[15];
     sprintf(command, "GET DGPS");
     requestMsg *request = makeRequest(command);
     sendRequest(request);
-    return dgpsData;
+    int dataSize = recvRequest(data);
+    return dataSize;
 }
 
-char *getLasers() {
+int getLasers(unsigned char **data) {
+    puts("Getting lasers");
     char *laserData = malloc(30);
     char command[15];
     sprintf(command, "GET LASERS");
     requestMsg *request = makeRequest(command);
     sendRequest(request);
-    return laserData;
+    int dataSize = recvRequest(data);
+    return dataSize;
 }
 
 // Gets an image from the robot
-void getImage() {
+int getImage(unsigned char **data) {
+    puts("Getting image");
     char command[15];
     sprintf(command, "GET IMAGE");
     requestMsg *request = makeRequest(command);
     sendRequest(request);
+    int dataSize = recvRequest(data);
+    return dataSize;
 }
 
 void resetClock() {
@@ -212,7 +238,7 @@ void sendRequest(requestMsg *request) {
     memcpy(requestBuffer, &request->commID, 4);
     memcpy(requestBuffer + 4, request->robotID, strlen(request->robotID) + 1);
     memcpy(requestBuffer + 4 + strlen(request->robotID) + 1, request->command, strlen(request->command) + 1);
-    printf("%s %s\n", requestBuffer + 4, requestBuffer + 4 + strlen(request->robotID) + 1);
+
     int requestLen = bufSize; 
     // Send the guess
     if ((sent = sendto(sock, requestBuffer, requestLen + 1, 0, (struct sockaddr *)
@@ -221,7 +247,7 @@ void sendRequest(requestMsg *request) {
         printf("SENT: %d %zu\n", sent, bufSize);
         DieWithError("sendto() sent a different number of bytes than expected");
     }
-    printf("%d sent request\n", sent);
+    printf("Bytes: %d sent request\n", sent);
 
 }
 // Creates a new request.
@@ -238,9 +264,9 @@ requestMsg *makeRequest(char *command) {
 
 
 
-void *recvRequest(){
+int recvRequest(unsigned char **data){
     //return array of response msg instead???
-    puts("SDSDD");
+    puts("Running recvRequest");
     responseMsg *messages[1000];  //array of response messages from server
 
     for (int i = 0; i < 1000; i++) {
@@ -280,6 +306,7 @@ void *recvRequest(){
             else
                 DieWithError("recvfrom() failed");
         }
+
         size += respStringLen - 12;
         responseMsg *msg = malloc(sizeof(responseMsg));     
         memcpy(&msg->requestID, &returnBuffer, 4);
@@ -287,12 +314,13 @@ void *recvRequest(){
         memcpy(&msg->sequenceN, returnBuffer + 8, 4);
         printf("ID: %d SEQ: %d nMessages: %d\n", msg->requestID, msg->sequenceN, msg->nMessages);
         msg->data = malloc(988);
-        printf("POINTA: %p\n", msg->data);
+        printf("LENGTH %d\n", respStringLen);
+
         memcpy(msg->data, returnBuffer + 12, respStringLen - 12);
         int nSequence = msg->sequenceN; 
-        if (nMessages != -1)  {
+        if (nMessages == -1)  {
+            puts("SETTING nMessages");
             nMessages = msg->nMessages; 
-            puts("revieved the data");
             if (nMessages > 1000) {
                 realloc(messages, nMessages * 1000); 
             }
@@ -310,21 +338,23 @@ void *recvRequest(){
     }
     
     printf("Size: %d\n", size);
-    void *data = malloc(size);
     
+    *data = malloc(size);
+    int originalSize = size; 
      int offset = 0;
      for (int i = 0; i < nMessages; i++) {
         if (size < 988)
-          memcpy(data + offset, messages[i]->data, size);
+          memcpy(*data + offset, messages[i]->data, size);
         else  {
-          memcpy(data + offset, messages[i]->data, 988);
+          memcpy(*data + offset, messages[i]->data, 988);
           size -= 988;
           offset += 988;
         }
     }
-     
-    return data;
+ 
+    return originalSize;
 }
+
 void recvLarge(){
     //--------variables-----------//
     int order; //message number we should be on or count

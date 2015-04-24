@@ -29,11 +29,9 @@ struct sockaddr_in receptionAddr; /* server address */
 struct sockaddr_in robotAddr;     /* Source address */
 struct sockaddr_in robotAddr_Image;
 struct sockaddr_in robotAddr_Dgps;
-struct sockaddr_in robotAddr_Gps;
 struct sockaddr_in robotAddr_Laser;
-struct sockaddr_in robotAddr_Move;
-struct sockaddr_in robotAddr_Turn;
-struct sockaddr_in robotAddr_Stop;
+struct sockaddr_in robotAddr_Command;
+
 
 requestMsg *getRequest(unsigned char *resp); 
 void resolveHost();
@@ -41,14 +39,13 @@ void sendUDP(int sock, unsigned char *message, int size);
 unsigned char *recvUDP(int sock, struct sockaddr_in serverAddr);
 
 void sendTCP(int sock, unsigned char *message, int size);
-unsigned char *recvTCP();
+unsigned char *recvTCP(int sock);
 
 struct sockaddr_in clientAddr;
 
-int sockTCP;                        /* Socket descriptor */
 int sockTCP_IMAGE;
 int sockTCP_DGPS;
-int sockTCP_P2;
+int sockTCP_Command;
 int sockTCP_LASER;
 
 
@@ -91,7 +88,7 @@ int main(int argc, char *argv[])
         DieWithError("ERROR\tSocket Error");
     if ((sockTCP_DGPS = socket(AF_INET, SOCK_STREAM, 0)) < 0)
         DieWithError("ERROR\tSocket Error");
-    if ((sockTCP_P2 = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+    if ((sockTCP_Command = socket(AF_INET, SOCK_STREAM, 0)) < 0)
         DieWithError("ERROR\tSocket Error");
     if ((sockTCP_LASER = socket(AF_INET, SOCK_STREAM, 0)) < 0)
         DieWithError("ERROR\tSocket Error");
@@ -110,25 +107,25 @@ int main(int argc, char *argv[])
     robotAddr_Image.sin_family = AF_INET;
     robotAddr_Image.sin_port = htons(serverPort);
     robotAddr_Image.sin_addr.s_addr = inet_addr(servIP);
-    robotAddr.sin_port = htons(8081);
+    robotAddr_Image.sin_port = htons(8081);
 
     memset(&robotAddr_Dgps, 0, sizeof(robotAddr));
     robotAddr_Dgps.sin_family = AF_INET;
     robotAddr_Dgps.sin_port = htons(serverPort);
     robotAddr_Dgps.sin_addr.s_addr = inet_addr(servIP);
-    robotAddr.sin_port = htons(8084);
+    robotAddr_Dgps.sin_port = htons(8084);
 
-    memset(&robotAddr_P2, 0, sizeof(robotAddr));    /*Works for: GPS, Move, Turn, Stop*/
-    robotAddr_Gps.sin_family = AF_INET;
-    robotAddr_Gps.sin_port = htons(serverPort);
-    robotAddr_Gps.sin_addr.s_addr = inet_addr(servIP);
-    robotAddr.sin_port = htons(8082);
+    memset(&robotAddr_Command, 0, sizeof(robotAddr));    /*Works for: GPS, Move, Turn, Stop*/
+    robotAddr_Command.sin_family = AF_INET;
+    robotAddr_Command.sin_port = htons(serverPort);
+    robotAddr_Command.sin_addr.s_addr = inet_addr(servIP);
+    robotAddr_Command.sin_port = htons(8082);
 
     memset(&robotAddr_Laser, 0, sizeof(robotAddr));
     robotAddr_Laser.sin_family = AF_INET;
     robotAddr_Laser.sin_port = htons(serverPort);
     robotAddr_Laser.sin_addr.s_addr = inet_addr(servIP);
-    robotAddr.sin_port = htons(8083);
+    robotAddr_Laser.sin_port = htons(8083);
 
     /*Resolving address if need be*/
     if (robotAddr.sin_addr.s_addr == -1) {
@@ -151,8 +148,8 @@ int main(int argc, char *argv[])
                 &robotAddr_Dgps, sizeof(robotAddr)) < 0){
         DieWithError("ERROR\tUnable to connect");
          }
-   if(connect(sockTCP_P2, (struct sockaddr *)
-                &robotAddr_P2, sizeof(robotAddr)) < 0){
+   if(connect(sockTCP_Command, (struct sockaddr *)
+                &robotAddr_Command, sizeof(robotAddr)) < 0){
         DieWithError("ERROR\tUnable to connect");
          }
    if(connect(sockTCP_LASER, (struct sockaddr *)
@@ -178,29 +175,31 @@ int main(int argc, char *argv[])
             command = IMAGE;
             page = imageAddr;
         }
-        if(strstr(cmd, "DGPS") != NULL){
+        else if(strstr(cmd, "DGPS") != NULL){
             command = DGPS;
             puts("DGPS");
             page = dGPS;
         }else if(strstr(cmd, "GPS") != NULL){
             command = GPS;
             puts("GPS");
-            page = action;
+            page = dGPS;
         }
-        if(strstr(cmd, "LASERS") != NULL){
+        else if(strstr(cmd, "LASERS") != NULL){
             command = LASERS;
             puts("LASERS");
             page = lasers;
         }
-        if(strstr(cmd, "MOVE") != NULL){
+        else if(strstr(cmd, "MOVE") != NULL){
             command = MOVE;
-            page = action;
-            page = strcat(page, "&lx=");
+            char *newPage = malloc(130);
+            strcpy(newPage, action);
+            strcat(newPage, "&lx=");
             strtok(cmd, " ");
             char *vel = strtok(NULL, " ");
-            page = strcat(page, vel);
+            page = strcat(newPage, vel);
+            printf("MOVE %s\n", page);
         }
-        if(strstr(cmd, "TURN") != NULL){
+        else if(strstr(cmd, "TURN") != NULL){
             command = TURN;
             page = action;
             page = strcat(page, "&az=");
@@ -208,7 +207,7 @@ int main(int argc, char *argv[])
             char *vel = strtok(NULL, " ");
             page = strcat(page, vel);
         }
-        if(strstr(cmd, "STOP") != NULL){
+        else if(strstr(cmd, "STOP") != NULL){
             command = STOP;
             page = action;
             page = strcat(page, "&lx=0");
@@ -221,22 +220,41 @@ int main(int argc, char *argv[])
                 "Host: %s\r\n"
                 "Connection: Keep-Alive\r\n"
                 "\r\n", page, host);
-      
-        sendTCP(sockTCP, (unsigned char *)query, strlen(query));
+
+        unsigned char *response;
+        if (command == STOP || command == TURN || command == MOVE || command == GPS) {
+            sendTCP(sockTCP_Command, (unsigned char *)query, strlen(query));
+            response =  recvTCP(sockTCP_Command);
+        }
+        else if (command == LASERS) {
+            sendTCP(sockTCP_LASER, (unsigned char *)query, strlen(query));
+            response =  recvTCP(sockTCP_LASER);
+
+        }
+        else if (command == DGPS) {
+            sendTCP(sockTCP_DGPS, (unsigned char *)query, strlen(query));
+            response =  recvTCP(sockTCP_DGPS);
+
+        }
+        else if (command == IMAGE) {
+            sendTCP(sockTCP_IMAGE, (unsigned char *)query, strlen(query));
+            response =  recvTCP(sockTCP_IMAGE);
+        }
+
+
         puts("HMM"); 
-        unsigned char *response =  recvTCP(sockTCP, robotAddr);
         //close(sockTCP);
         printf("%s", response);
         responseSize = strlen(response);
-        puts("GOT TCP STUFF");
+        //puts("GOT TCP STUFF");
 
         unsigned char *content = strstr((char *)response, "\r\n\r\n");
-        int contentSize = content - response - 4;
         if(content == NULL){
             //fprintf(stderr, "Issue with content request\n%s", content);
         }
         content = content + 4;
-        printf("Content: %s\n", content);
+        int contentSize = strlen(content) + 1;
+        //printf("Content: %s\n", content);
         struct response_message *rm = (struct response_message *) malloc(sizeof( struct response_message));
         unsigned char *data;
         int number = ceil(1.0 * responseSize/(1000 - sizeof(struct response_message)));
@@ -254,7 +272,8 @@ int main(int argc, char *argv[])
             rm->sequenceN = sequence;
             rm->nMessages = number;
             if (sequence == number - 1){
-                //rm->data = content + (responseSize % transmission);
+                rm->data = content + (responseSize % transmission);
+                memcpy(rm->data, content + offset, (responseSize % transmission));
                 sendUDP(sockUDP, (unsigned char *)rm, (responseSize % transmission));
                 break;
             }
@@ -272,6 +291,7 @@ int main(int argc, char *argv[])
 void sendUDP(int sock, unsigned char *message, int size){
     fprintf(stderr, "Sending response to client\n");
     int sent;
+    printf("SENDING SIZE: %d\n", size);
     if ((sent = sendto(sockUDP, (unsigned char *)message, size, 0, (struct sockaddr *)
                 &clientAddr, sizeof(clientAddr))) != size) {
         printf("SENT: %d\n", sent);
@@ -301,7 +321,7 @@ void sendTCP(int sock, unsigned char *message, int size){
   puts("SDDS");
     fprintf(stderr, "Sending\n");
     printf("%s\n", message);
-    if ((send(sockTCP, (char *)message, size, 0)) != size){
+    if ((send(sock, (char *)message, size, 0)) != size){
         DieWithError("ERROR\tSent wrong # of bytes");
     }
     
@@ -309,11 +329,11 @@ void sendTCP(int sock, unsigned char *message, int size){
 }
 
 // Recieves a TCP message from the robot server
-unsigned char *recvTCP(){
+unsigned char *recvTCP(int sock){
     fprintf(stderr, "getting response from robot\n");
     char buffer[5000];
     int bytesRcvd;
-    if ((bytesRcvd = recv(sockTCP, buffer, 5000, 0)) <= 0) {
+    if ((bytesRcvd = recv(sock, buffer, 5000, 0)) <= 0) {
         DieWithError("recvFailed");
     }
 
@@ -334,7 +354,10 @@ void DieWithError(char *errorMessage)
 //Exits on ctrl-c
 void interupt(int sig){
     fprintf(stderr, "\nEnding it all!\n");
-    close(sockTCP);
+    close(sockTCP_LASER);
+    close(sockTCP_DGPS);
+    close(sockTCP_Command);
+    close(sockTCP_IMAGE);
     exit(0);
 }
 
