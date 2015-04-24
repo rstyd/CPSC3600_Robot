@@ -20,22 +20,18 @@ void getArguments(char **argv);
 void takeSnapshot();
 requestMsg *makeRequest(char *command);
 
-void AlarmHandler(int sig) {
-    puts("ALARMED BITCHES");
-    waiting = 0;
-}
-
 void moveRobot();
 void stopRobot();
 void startTimer(int seconds);
 void turnRobot(double angle);
 void sendRequest(requestMsg *request);
-int getGPS(unsigned char **data);
-int getDGPS(unsigned char **data);
-int getLasers(unsigned char **data);
 
-int getImage(unsigned char **data);
-int recvRequest(unsigned char **data);
+unsigned char *getGPS(int *size);
+unsigned char *getDGPS(int *size);
+unsigned char *getLasers(int *size);
+unsigned char *getImage(int *size);
+
+unsigned char *recvRequest(int *size);
 int sock;
 
 struct sockaddr_in middlewareAddr;  // Local Address
@@ -47,7 +43,6 @@ void DieWithError(char *errMsg) {
 
 int main(int argc, char *argv[]) 
 {
-    signal(SIGALRM, AlarmHandler);
     struct hostent *thehost;         // Hostent from gethostbyname()
     serverIP = argv[1];
     port = atoi(argv[2]);
@@ -104,12 +99,26 @@ int main(int argc, char *argv[])
         //takeSnapshot(turn);
         turn++;
     }
+    
+/*
+    for (int i = 0; i < N - 1; i++) {
+        printf("On turn: %d", i);
+        // Move the robot L meters in the current direction then stop
+        puts("MOVING ROBOT");
+        moveRobot(L);
+        // Turn the robot angle radians then stop
+        puts("TURNING ROBOT");
+        turnRobot(angle);
+        // Get all of the data from the robot
+        requestID++;
+        puts("TAKING SNAPSHOT");
+        //takeSnapshot(turn);
+        turn++;
+     }
+*/
     return 0;
 }
 
-void startTimer(int seconds) {
-    alarm(seconds);
-}
 
 void takeSnapshot(int turn) {
     puts("Taking snapshot");
@@ -119,27 +128,56 @@ void takeSnapshot(int turn) {
     sprintf(textFilename, "position-%d.txt", turn);
 
     FILE *textFile = fopen(textFilename, "wb");
-    unsigned char  *GPS, *DGPS, *lasers;
-    int gpsSize = getGPS(&GPS);
+    char  *GPS, *DGPS, *lasers;
+    int gpsSize; 
+    GPS = getGPS(&gpsSize);
     printf("%d\n", gpsSize);
-    int dgpsSize = getDGPS(&DGPS);
-    int lasersSize= getLasers(&lasers);
+    int dgpsSize; 
+    DGPS = getDGPS(&dgpsSize);
+    int lasersSize;
+    lasers = getLasers(&lasersSize);
+    printf("%d gpsSize %d dgpsSize %d lasersSize\n", gpsSize, dgpsSize, lasersSize);
     printf("gps %d  dgps %d lasers %d\n", gpsSize, dgpsSize, lasersSize);
- /*   fprintf(textFile, "GPS "); 
-    fwrite(GPS, gpsSize, 1, textFile);
-    fprintf(textFile, "\ndGPS "); 
-    fwrite(DGPS, dgpsSize, 1, textFile);
-    fprintf(textFile, "\nlasers "); 
-    fwrite(lasers, lasersSize, 1, textFile);
-    fprintf(textFile, "\n"); 
-    fclose(textFile);
+    puts("GPS DATA");
+    for (int i = 0; i < gpsSize; i++) {
+        printf("%c", GPS[i]);
+    }
+    char *textData = malloc(gpsSize + dgpsSize + lasersSize); 
+    char *gpsPreface = "GPS ";
+    char *dgpsPreface = "dGPS ";
+    char *lasersPreface = "Lasers ";
+    char *newLine = "\n";
+
+//    fprintf(textFile, "GPS %s\n DGPS %s\n", GPS, DGPS);
+ //   fclose(textFile);
+    memcpy(textData, gpsPreface, 5);
+ /*   int offset = 0;
+    offset += 4;
+    memcpy(textData + offset, GPS, gpsSize);
+    offset += gpsSize;
+    memcpy(textData + offset, newLine, 1); 
+    offset += 1;
+    memcpy(textData, dgpsPreface, 4);
+    offset += 4;
+    memcpy(textData + offset, DGPS, dgpsSize);
+    offset += dgpsSize;
+    memcpy(textData + offset, newLine, 1); 
+    offset += 1;
+    memcpy(textData, lasersPreface, 4);
+    offset += 4;
+    memcpy(textData + offset, lasers, lasersSize);
+
+    fwrite(textData, 1, (4 * 3 + 2 + gpsSize + dgpsSize + lasersSize), textFile);
 */
+    /*
     unsigned char *data;
-    int imageSize = getImage(&data);
+    int imageSize; 
+    data = getImage(&imageSize);
     printf("Image Size: %d\n", imageSize);
     FILE *imageFile = fopen(imageFilename, "wb"); 
- //   fwrite(data, imageSize, 1, imageFile);
+    fwrite(data, sizeof(int), imageSize, imageFile);
     fclose(imageFile);
+    */
 }
 void moveRobot(int meters) {
     puts("Moving robot");
@@ -154,8 +192,9 @@ void moveRobot(int meters) {
     requestMsg *request = makeRequest(command);
     puts("Sending request"); 
     sendRequest(request);
-    void *data;
-    int size = recvRequest(data);
+    unsigned char *data;
+    int size;
+    data = recvRequest(&size);
     puts("Reciveing request");
     puts("Starting wait");
     // Waits for the movement time to go off 
@@ -167,11 +206,16 @@ void moveRobot(int meters) {
 void turnRobot(double angle) {
     puts("Turning Robot");
     char command[15];
-    sprintf(command, "TURN %f", angle);
     int moveTime = 7;
     double speed = angle/moveTime;
+    sprintf(command, "TURN %f", speed);
     requestMsg *request = makeRequest(command);
+
     sendRequest(request);
+    unsigned char *data;
+    int size;
+    data = recvRequest(&size);
+
     stopRobot();
 }
 
@@ -181,49 +225,51 @@ void stopRobot() {
     sprintf(command, "STOP");
     requestMsg *request = makeRequest(command);
     sendRequest(request);
+    unsigned char *data;
+    int size;
+    data = recvRequest(&size);
+
 }
 
-int getGPS(unsigned char **data) {
+unsigned char *getGPS(int *size) {
     puts("Getting GPS");
     char command[15];
     sprintf(command, "GET GPS");
     requestMsg *request = makeRequest(command);
     sendRequest(request);
-    int dataSize = recvRequest(data);
-    return dataSize;
+    unsigned char *data  = recvRequest(size);
+    return data;
 }
 
-int getDGPS(unsigned char **data) {
+unsigned char *getDGPS(int *size) {
     puts("Getting DGPS");
-    char *dgpsData = malloc(30);
     char command[15];
     sprintf(command, "GET DGPS");
     requestMsg *request = makeRequest(command);
     sendRequest(request);
-    int dataSize = recvRequest(data);
-    return dataSize;
+    unsigned char *data = recvRequest(size);
+    return data;
 }
 
-int getLasers(unsigned char **data) {
+unsigned char *getLasers(int *size) {
     puts("Getting lasers");
-    char *laserData = malloc(30);
     char command[15];
     sprintf(command, "GET LASERS");
     requestMsg *request = makeRequest(command);
     sendRequest(request);
-    int dataSize = recvRequest(data);
-    return dataSize;
+    unsigned char *data = recvRequest(size);
+    return data;
 }
 
 // Gets an image from the robot
-int getImage(unsigned char **data) {
+unsigned char *getImage(int *size) {
     puts("Getting image");
     char command[15];
     sprintf(command, "GET IMAGE");
     requestMsg *request = makeRequest(command);
     sendRequest(request);
-    int dataSize = recvRequest(data);
-    return dataSize;
+    unsigned char *data = recvRequest(size);
+    return data;
 }
 
 void resetClock() {
@@ -247,6 +293,7 @@ void sendRequest(requestMsg *request) {
         printf("SENT: %d %zu\n", sent, bufSize);
         DieWithError("sendto() sent a different number of bytes than expected");
     }
+    free(requestBuffer);
     printf("Bytes: %d sent request\n", sent);
 
 }
@@ -254,6 +301,7 @@ void sendRequest(requestMsg *request) {
 requestMsg *makeRequest(char *command) {
     requestMsg *newRequest = malloc(sizeof(requestMsg)); 
     newRequest->commID = requestID++;
+    printf("ID: %d", newRequest->commID);
     newRequest->robotID = malloc(strlen(robotID) + 1);
     strcpy(newRequest->robotID, robotID);  
     newRequest->command = malloc(strlen(command) + 1);
@@ -264,7 +312,7 @@ requestMsg *makeRequest(char *command) {
 
 
 
-int recvRequest(unsigned char **data){
+unsigned char *recvRequest(int *size){
     //return array of response msg instead???
     puts("Running recvRequest");
     responseMsg *messages[1000];  //array of response messages from server
@@ -272,7 +320,7 @@ int recvRequest(unsigned char **data){
     for (int i = 0; i < 1000; i++) {
         messages[i] = NULL;
     }
-
+    unsigned char *data;
     char returnBuffer[1000];
     int respStringLen = 0;
 
@@ -285,7 +333,7 @@ int recvRequest(unsigned char **data){
     if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO,&timeout,sizeof(timeout)) < 0) {
         DieWithError("Could not set timeout");
     }
-    int size = 0;
+    int fileSize = 0;
     int messagesRcvd = 0;
     while (true) {
         if (nMessages == messagesRcvd) {
@@ -307,22 +355,23 @@ int recvRequest(unsigned char **data){
                 DieWithError("recvfrom() failed");
         }
 
-        size += respStringLen - 12;
+        fileSize += respStringLen - 12;
         responseMsg *msg = malloc(sizeof(responseMsg));     
         memcpy(&msg->requestID, &returnBuffer, 4);
-        memcpy(&msg->nMessages, returnBuffer + 4, 4);
-        memcpy(&msg->sequenceN, returnBuffer + 8, 4);
+        memcpy(&msg->nMessages, &returnBuffer + 4, 4);
+        memcpy(&msg->sequenceN, &returnBuffer + 8, 4);
         printf("ID: %d SEQ: %d nMessages: %d\n", msg->requestID, msg->sequenceN, msg->nMessages);
         msg->data = malloc(988);
         printf("LENGTH %d\n", respStringLen);
 
-        memcpy(msg->data, returnBuffer + 12, respStringLen - 12);
-        int nSequence = msg->sequenceN; 
+        memcpy(msg->data, &returnBuffer + 12, respStringLen - 12);
+
         if (nMessages == -1)  {
             puts("SETTING nMessages");
             nMessages = msg->nMessages; 
             if (nMessages > 1000) {
-                realloc(messages, nMessages * 1000); 
+                puts("DAmn that's a lot of messages"); 
+               // messages = realloc(messages, nMessages * 1000); 
             }
         }
         messages[msg->sequenceN] = msg;
@@ -332,89 +381,26 @@ int recvRequest(unsigned char **data){
      
     for (int i = 0; i < nMessages; i++) {
         if (messages[i] == NULL) {
-            fprintf(stderr, "Did not get all the messages required");
+            fprintf(stderr, "Did not get all the messages required\n");
             exit(1); 
         }
     }
     
-    printf("Size: %d\n", size);
+    printf("Recieved Filesize: %d\n", fileSize);
     
-    *data = malloc(size);
-    int originalSize = size; 
+    data = malloc(fileSize);
+    *size = fileSize; 
      int offset = 0;
      for (int i = 0; i < nMessages; i++) {
-        if (size < 988)
-          memcpy(*data + offset, messages[i]->data, size);
+        if (fileSize < 988)
+          memcpy(data + offset, messages[i]->data, fileSize);
         else  {
-          memcpy(*data + offset, messages[i]->data, 988);
-          size -= 988;
+          memcpy(data + offset, messages[i]->data, 988);
+          fileSize -= 988;
           offset += 988;
         }
     }
  
-    return originalSize;
+    return data;
 }
-
-void recvLarge(){
-    //--------variables-----------//
-    int order; //message number we should be on or count
-    int recvSize; //size of received message
-    time_t start_t, end_t;
-    double diff_t;
-    responseMsg messages[100];  //array of response messages from server
-    //----------------------------//
-    memset(messages,0,sizeof(responseMsg)*100); //zero out array and make space
-    //
-    //   memset(buffer, 0, bufferSize);
-    //
-    //time(&start_t);
-    while(1){
-        puts("SDSDD");
-        while (true) {
-            int respStringLen = 0;
-            char returnBuffer[100];
-            unsigned int fromSize = sizeof(fromAddr);
-            if ((respStringLen = recvfrom(sock, returnBuffer, 100, 0,
-                            (struct sockaddr *) &fromAddr, &fromSize)) < 1) 
-            {
-                // Check to see if the socket timedout
-                if (errno == EAGAIN) {
-                    errno = 0;
-                    continue;
-                }
-                else
-                    DieWithError("recvfrom() failed");
-            }
-
-        }
-    }
-}
-
-void recvAckno(int timeout){}
-
-char* recvSmall(){
-    int recvSize;
-    responseMsg messy;
-    char buff[1000];
-    time_t start_t, end_t;
-    double diff_t; 
-
-    time(&start_t);
-    time(&end_t);
-    /*
-       while((diff_t = difftime(end_t, start_t)) < timeout){
-       if (recvSize = recvfrom(sock, buff, 1000, 0, 
-       (struct sockaddr *) &fromAddr) < 0){
-       fprintf(stderr, "recv() less than 0 bytes error or done");
-    //break;
-    }
-    else {
-    //insert buffer into struct and take data into string and return
-    break;
-    }
-    time(&end);
-    }
-    */
-}
-
 
