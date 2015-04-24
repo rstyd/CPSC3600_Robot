@@ -73,17 +73,16 @@ int main(int argc, char *argv[])
 
     id = argv[3];
     imageID = argv[4];
+    
     sprintf(imageAddr, "/snapshot?topic=/robot_%s/image?width=600?height=500", imageID);
 
 
    char *action = malloc(100);//"/twist?id=";
-   char *action2 = malloc(strlen(action2) + 30); 
     sprintf(action, "/twist?id=%s", id); 
-    char *dGPS2 = "/state?id=";
+    char *dGPS = malloc(100);
     sprintf(dGPS, "/state?id=%s", id);
    //char *action = malloc(strlen(action2) + 30); 
 
-    char *dGPS = malloc(100);
     char *lasers = malloc(100);//8083
 	sprintf(lasers, "/state?id=%s", id);
 	
