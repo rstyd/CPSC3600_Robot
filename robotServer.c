@@ -61,19 +61,26 @@ int main(int argc, char *argv[])
     char *id, *imageID;
     //	char *tok; //, *host = (char *)malloc(SENDMAX);
 
-    char *imageAddr2 = "robot_50000";//8081
-    char *imageAddr = malloc(strlen(imageAddr2 + 30));
+    //char *imageAddr2 = "robot_50000";//8081
+    //char *imageAddr = malloc(strlen(imageAddr2 + 30));
     
 
-    char *imageAddr3 = "/snapshot?topic=/robot_5/image?width=600?height=500";//8081
-    char *action3 = "/twist?id=2agreeable";//8082 move: &lx=, turn: &az=, stop: &lx=0
-    char *dGPS3 = "/state?id=2agreeable";//8084
-    char *lasers3 = "/state?id=2agreeable";//8083
+/*    char *imageAddr3 = "/snapshot?topic=/robot_5/image?width=600?height=500";//8081*/
+/*    char *action3 = "/twist?id=2agreeable";//8082 move: &lx=, turn: &az=, stop: &lx=0*/
+/*    char *dGPS3 = "/state?id=2agreeable";//8084*/
+/*    char *lasers3 = "/state?id=2agreeable";//8083*/
 
+
+
+
+/*char *imageAddr = "/snapshot?topic=/robot_5/image?width=600?height=500";//8081*/
+/*char *action = "/twist?id=2agreeable";//8082 move: &lx=, turn: &az=, stop: &lx=0*/
+/*char *dGPS = "/state?id=2agreeable";//8084*/
+/*char *lasers = "/state?id=2agreeable";//8083*/
 
     id = argv[3];
     imageID = argv[4];
-    
+    char *imageAddr = malloc(100);
     sprintf(imageAddr, "/snapshot?topic=/robot_%s/image?width=600?height=500", imageID);
 
 
@@ -86,6 +93,7 @@ int main(int argc, char *argv[])
     char *lasers = malloc(100);//8083
 	sprintf(lasers, "/state?id=%s", id);
 	
+	printf("addr: %s\naction :%s\ndGPS: %s\nlasers: %s\n",imageAddr, action, dGPS, lasers);
 /*	char *GPS = malloc(100);*/
 /*	sprintf(GPS, "/state?id=%s", id);*/
 
