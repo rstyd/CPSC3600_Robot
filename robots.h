@@ -6,7 +6,7 @@ typedef struct request_message {
 
 #pragma pack(push, 1)
 typedef struct response_message {
-    unsigned int requstID;
+    unsigned int requestID;
     unsigned int nMessages;
     unsigned int sequenceN;
     void *data;
@@ -33,7 +33,7 @@ enum commands {MOVE, TURN, STOP, IMAGE, GPS, DGPS, LASERS};
 
 
 char *imageAddr = "/snapshot?topic=/robot_5/image?width=600?height=500";//8081
-char *action = "/state?id=2agreeable";//8082 move: &lx=, turn: &az=, stop: &lx=0
+char *action = "/twist?id=2agreeable";//8082 move: &lx=, turn: &az=, stop: &lx=0
 char *dGPS = "/state?id=2agreeable";//8084
 char *lasers = "/state?id=2agreeable";//8083
 
