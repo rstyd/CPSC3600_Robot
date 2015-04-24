@@ -16,10 +16,11 @@ KNOWN PROBLEMS:
 One particular problem that our program faces is that we can download images, but they end up getting corrupted. 
 It seems like the TCP server is not sending the correct amount of data. 
 
-
+In addition, the host is set as castara.cs.clemson.edu; any attempt to resolve
+the ip address of castara gives some server in France.
 
 DESIGN:
-We based our program off of the design featured in the Supplementary Specification and FInal Project Specification on Piazza. Unfrotunately, these two documents often conflict each other. We decided to pick a mixture of the two that would work for our needs. 
+We based our program off of the design featured in the Supplementary Specification and Final Project Specification on Piazza. Unfrotunately, these two documents often conflict each other. We decided to pick a mixture of the two that would work for our needs. 
 
 To run the program, use these commmand line arguments.
 
