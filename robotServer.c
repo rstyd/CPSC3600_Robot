@@ -51,6 +51,7 @@ char *page;
 char *host;
 unsigned short serverPort; 
 
+int command;
 int main(int argc, char *argv[])
 {
 
@@ -126,7 +127,6 @@ int main(int argc, char *argv[])
 
         char *page;
         char *cmd = newRequest->command;
-        int command;
         printf("COMMAND IS %s\n", cmd);
 
         if(strstr(cmd, "IMAGE") != NULL){
@@ -332,19 +332,53 @@ void sendTCP(int sock, unsigned char *message, int size){
 // Recieves a TCP message from the robot server
 unsigned char *recvTCP(int sock){
     fprintf(stderr, "getting response from robot\n");
-    char buffer[20000];
-    int bytesRcvd;
-    if ((bytesRcvd = recv(sock, buffer, 20000, 0)) <= 0) {
-        DieWithError("recvFailed");
-    }
+    if (command != IMAGE) { 
+		 char buffer[20000];
+		 int bytesRcvd;
+		 if ((bytesRcvd = recv(sock, buffer, 20000, 0)) <= 0) {
+			  DieWithError("recvFailed");
+		 }
 
-    //printf("GOT %d\n", bytesRcvd);
-    unsigned char *cont = malloc(bytesRcvd);
-    memcpy(cont, buffer, bytesRcvd);
-    //printf("%s\n", buffer); 
-    responseSize = bytesRcvd;
-    close(sockTCP);
-    return cont;             	
+		 //printf("GOT %d\n", bytesRcvd);
+		 unsigned char *cont = malloc(bytesRcvd);
+		 memcpy(cont, buffer, bytesRcvd);
+		 //printf("%s\n", buffer); 
+		 responseSize = bytesRcvd;
+		 close(sockTCP);
+    	return cont;
+	 }
+	 else {
+		 int size_recv , total_size= 0;
+		 char chunk[99999];
+		 unsigned char *cont = malloc(20480);   //malloced 20KB
+		 //loop
+		 while(1)
+		 {
+			  //printf("blerg");
+			  memset(chunk ,0 , 99999);  //clear the variable
+			  if((size_recv =  recv(sock , chunk , 99999 , 0) ) < 0)
+			  {
+					printf("blerg\n");
+					break;
+			  }
+			  else if(size_recv == 0){
+				 fprintf(stderr,"finished receiving says recv()\n");
+				 break;
+			  }
+			  else
+			  {
+					memcpy(cont + total_size , chunk ,size_recv);
+					total_size += size_recv; 
+			  }
+			  
+			  printf("recvsize is: %d\n", size_recv);
+		 }
+	 	responseSize = total_size; 
+		close(sockTCP);
+    	return cont;
+	 }
+    //close(sockTCP);
+    //return cont;             	
 }
 
 void DieWithError(char *errorMessage)

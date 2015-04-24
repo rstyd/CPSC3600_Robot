@@ -83,9 +83,9 @@ int main(int argc, char *argv[])
     double angle = (PI * (N-2))/N; 
 
     int turn = 0;
-   // takeSnapshot(turn);
+    takeSnapshot(turn);
     // Draw the first Polygon
-    for (int i = 0; i < N; i++) {
+    /*for (int i = 0; i < N; i++) {
         printf("On turn: %d", i);
         // Move the robot L meters in the current direction then stop
         puts("MOVING ROBOT");
@@ -99,7 +99,7 @@ int main(int argc, char *argv[])
         //takeSnapshot(turn);
         turn++;
     }
-    moveRobot(0); 
+    moveRobot(0);*/ 
     
 /*
     for (int i = 0; i < N - 1; i++) {
@@ -124,7 +124,7 @@ int main(int argc, char *argv[])
 void takeSnapshot(int turn) {
     puts("Taking snapshot");
     char imageFilename[15];
-    sprintf(imageFilename, "image-%d.png", turn);
+    sprintf(imageFilename, "image-%d.jpeg", turn);
     char textFilename[15];
     sprintf(textFilename, "position-%d.txt", turn);
 
