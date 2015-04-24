@@ -1,4 +1,4 @@
-CC=gcc
+CC=clang
 CFLAGS=-Wall -g -std=c99
 
 BINS=robotClient robotServer
@@ -22,4 +22,4 @@ server:
 	./robotServer 5022 130.127.192.62 2agreeable 5
 
 package:
-	tar cvzf smsouth_others.tar.gz README robot.h robotClient.c robotServer.c Makefile
+	tar cvzf smsouth_daj2_clauded_bobrigg.tar.gz README robots.h robotClient.c robotServer.c Makefile
