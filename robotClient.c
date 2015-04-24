@@ -83,9 +83,9 @@ int main(int argc, char *argv[])
     double angle = ((PI * (N-2))/N); 
 
     int turn = 0;
-    takeSnapshot(turn);
+    //takeSnapshot(turn);
     // Draw the first Polygon
-  /*  for (int i = 0; i < N; i++) {
+    for (int i = 0; i < N; i++) {
         printf("On turn: %d", i);
         // Move the robot L meters in the current direction then stop
         puts("MOVING ROBOT");
@@ -95,15 +95,15 @@ int main(int argc, char *argv[])
         turnRobot(angle);
         // Get all of the data from the robot
         requestID++;
-        //takeSnapshot(turn);
+       // takeSnapshot(turn);
         turn++;
     }
-    */
-    //moveRobot(0);
+    
+    moveRobot(0);
 //    stopRobot();
     
     
-/*
+
     for (int i = 0; i < N - 1; i++) {
         printf("On turn: %d", i);
         // Move the robot L meters in the current direction then stop
@@ -118,7 +118,8 @@ int main(int argc, char *argv[])
         //takeSnapshot(turn);
         turn++;
      }
-*/
+    moveRobot(0);
+
     return 0;
 }
 
