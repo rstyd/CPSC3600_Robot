@@ -50,6 +50,7 @@ char *host;
 unsigned short serverPort; 
 
 int command;
+
 int main(int argc, char *argv[])
 {
 
@@ -60,25 +61,6 @@ int main(int argc, char *argv[])
     page = (char *)malloc(SENDMAX);                     /*File location on the host*/
 
     char *id, *imageID;
-    //	char *tok; //, *host = (char *)malloc(SENDMAX);
-
-    //char *imageAddr2 = "robot_50000";//8081
-    //char *imageAddr = malloc(strlen(imageAddr2 + 30));
-    
-
-/*    char *imageAddr3 = "/snapshot?topic=/robot_5/image?width=600?height=500";//8081*/
-/*    char *action3 = "/twist?id=2agreeable";//8082 move: &lx=, turn: &az=, stop: &lx=0*/
-/*    char *dGPS3 = "/state?id=2agreeable";//8084*/
-/*    char *lasers3 = "/state?id=2agreeable";//8083*/
-
-
-
-
-/*char *imageAddr = "/snapshot?topic=/robot_5/image?width=600?height=500";//8081*/
-/*char *action = "/twist?id=2agreeable";//8082 move: &lx=, turn: &az=, stop: &lx=0*/
-/*char *dGPS = "/state?id=2agreeable";//8084*/
-/*char *lasers = "/state?id=2agreeable";//8083*/
-
     id = argv[3];
     imageID = argv[4];
     char *imageAddr = malloc(100);
@@ -90,24 +72,16 @@ int main(int argc, char *argv[])
     sprintf(action, "/twist?id=%s", id); 
     char *dGPS = malloc(100);
     sprintf(dGPS, "/state?id=%s", id);
-   //char *action = malloc(strlen(action2) + 30); 
 
     char *lasers = malloc(100);//8083
 	sprintf(lasers, "/state?id=%s", id);
 	
-	printf("addr: %s\naction :%s\ndGPS: %s\nlasers: %s\n",imageAddr, action, dGPS, lasers);
-/*	char *GPS = malloc(100);*/
-/*	sprintf(GPS, "/state?id=%s", id);*/
 
  servIP[0] = 0;
     servIP = argv[2];
     serverPort = atoi(argv[1]);
-    printf("Port: %hu Ip %s ID %s imageID %s", serverPort, servIP, id, imageID);
     host = "castara.cs.clemson.edu";
 
-    printf("THE HOST IS %s\n", host);	
-
-    
     /*Create UDP socket*/
     if ((sockUDP = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
         DieWithError("ERROR\tSocket Error");
@@ -140,18 +114,11 @@ int main(int argc, char *argv[])
     
     while(true){
         unsigned char *resp = recvUDP(sockUDP, receptionAddr);
-        puts("MAKING request");
         requestMsg *newRequest = getRequest(resp); 
-
-        printf("Robot ID: %s Command: %s\n", newRequest->robotID, newRequest->command);
-
-        //TODO: set page according to resp
-        //char *page = dGPS;
 
         char *page;
         char *cmd = newRequest->command;
-        printf("COMMAND IS %s\n", cmd);
-
+        // Parse Commands
         if(strstr(cmd, "IMAGE") != NULL){
             command = IMAGE;
             char *newPage = malloc(100);
@@ -179,6 +146,7 @@ int main(int argc, char *argv[])
             robotAddr.sin_port = htons(8083);
         }
         else if(strstr(cmd, "MOVE") != NULL){
+            puts("MOVE");
             command = MOVE;
             char *newPage = malloc(130);
             strcpy(newPage, action);
@@ -186,10 +154,10 @@ int main(int argc, char *argv[])
             strtok(cmd, " ");
             char *vel = strtok(NULL, " ");
             page = strcat(newPage, vel);
-            //printf("MOVE %s\n", page);
             robotAddr.sin_port = htons(8082);
         }
         else if(strstr(cmd, "TURN") != NULL){
+            puts("TURN");
             command = TURN;
             char *newPage = malloc(130);
             strcpy(newPage, action);
@@ -200,6 +168,7 @@ int main(int argc, char *argv[])
             robotAddr.sin_port = htons(8082);
         }
         else if(strstr(cmd, "STOP") != NULL){
+            puts("STOP");
             command = STOP;
             char *newPage = malloc(130);
             strcpy(newPage, action);
@@ -214,7 +183,8 @@ int main(int argc, char *argv[])
                 "Host: %s\r\n"
                 "Connection: Keep-Alive\r\n"
                 "\r\n", page, host);
-
+        
+        // Set the appropriate socket
         unsigned char *response;
         if (command == STOP || command == TURN || command == MOVE || command == GPS) {
             sendTCP(sockTCP, (unsigned char *)query, strlen(query));
@@ -235,60 +205,34 @@ int main(int argc, char *argv[])
             response =  recvTCP(sockTCP);
         }
 
-
-        puts("HMM"); 
-        //close(sockTCP);
-        printf("%s", response);
-        //puts("GOT TCP STUFF");
-
-        unsigned char *content = strstr((char *)response, "\r\n\r\n");
-        if(content == NULL){
-            //fprintf(stderr, "Issue with content request\n%s", content);
-        }
+        unsigned char *content = (unsigned char *) strstr((char *)response, "\r\n\r\n");
         content = content + 4;
         
-
-        if (command == IMAGE) {
-        } else {
-
-        }
-        printf("ORIGINAL RESPONSE: %d\n", responseSize);
+        // Create the responce header structure
         responseSize -= content - response;
-        //printf("Content: %s\n", content);
         struct response_message *rm = (struct response_message *) malloc(sizeof( struct response_message));
-        unsigned char *data;
         int number = ceil(1.0 * responseSize/(1000 - sizeof(struct response_message)));
         rm->nMessages = number; 
         int sequence = 0;
         int offset = 0;
 
-        printf("Requires %d messages\n", number);
-        printf("Response Size: %d\n", responseSize);
-
         int transmission = 1000 - sizeof(responseMsg) + sizeof(void *);
         unsigned char *buff = malloc(1000);
         rm->data = malloc(transmission);
-
+            
+        // Fragment the data into 988 blocks and send them out to the client using UDP
         while(sequence < number){
               rm->sequenceN = sequence;
              rm->nMessages = number;
-            int fSize = transmission - responseSize;
             if (sequence == number - 1){
                 memcpy(rm->data, content + offset, (responseSize % transmission));
                 memcpy(buff, &newRequest->commID, 5); 
                 memcpy(buff + 4, &rm->nMessages, 4);
                 memcpy(buff + 8, &rm->sequenceN, 4);
                 memcpy(buff + 12, rm->data, (responseSize % transmission));
-                //memcpy(rm->data, content + offset, (responseSize % transmission));
-               // memcpy(buff + 12, content + offset, (responseSize % transmission) + 12);
-
                 sendUDP(sockUDP, buff, (responseSize % transmission) + 12 );
-
-                printf("STRLEN%zu\n", strlen(rm->data));
-                printf("THIS IS A MESSAGE%sSDLS\n", buff + 12);
                 break;
             }
-           // memcpy(buff + 12, content + offset, transmission);
             memcpy(rm->data, content + offset, (transmission));
             offset += transmission;
             memcpy(buff, &newRequest->commID, 4); 
@@ -306,16 +250,14 @@ int main(int argc, char *argv[])
 
 // Sends a UDP message through the specified socket
 void sendUDP(int sock, unsigned char *message, int size){
-    fprintf(stderr, "Sending response to client\n");
     int sent;
-    printf("SENDING SIZE: %d\n", size);
     if ((sent = sendto(sockUDP, (unsigned char *)message, size, 0, (struct sockaddr *)
                 &clientAddr, sizeof(clientAddr))) != size) {
-        printf("SENT: %d\n", sent);
         DieWithError("ERROR\tSent wrong # of bytes");
     }
 }
 
+// Recv UDP messages from the client
 unsigned char *recvUDP(int sock, struct sockaddr_in allAddress){
 
     fprintf(stderr,"waiting for command\n");
@@ -344,13 +286,8 @@ void sendTCP(int sock, unsigned char *message, int size){
         DieWithError("ERROR\tUnable to connect");
          }
 
-    fprintf(stderr, "Sending\n");
-    printf("%s\n", message);
-    printf("Size sent TCP %d\n", size);
-
     int sent;
     if ((sent = send(sockTCP, (char *)message, size, 0)) != size){
-        printf("SENT: %d\n", sent);
         DieWithError("ERROR\tSent wrong # of bytes");
     }
     
@@ -367,26 +304,23 @@ unsigned char *recvTCP(int sock){
 			  DieWithError("recvFailed");
 		 }
 
-		 //printf("GOT %d\n", bytesRcvd);
 		 unsigned char *cont = malloc(bytesRcvd);
 		 memcpy(cont, buffer, bytesRcvd);
-		 //printf("%s\n", buffer); 
 		 responseSize = bytesRcvd;
 		 close(sockTCP);
     	return cont;
 	 }
 	 else {
+         // Only used for the image which doesn't come in one stream thanks to the fact that that particular server uses http/1.0 
 		 int size_recv , total_size= 0;
 		 char chunk[99999];
 		 unsigned char *cont = malloc(20480);   //malloced 20KB
-		 //loop
+
 		 while(1)
 		 {
-			  //printf("blerg");
 			  memset(chunk ,0 , 99999);  //clear the variable
 			  if((size_recv =  recv(sock , chunk , 99999 , 0) ) < 0)
 			  {
-					printf("blerg\n");
 					break;
 			  }
 			  else if(size_recv == 0){
@@ -399,14 +333,12 @@ unsigned char *recvTCP(int sock){
 					total_size += size_recv; 
 			  }
 			  
-			  printf("recvsize is: %d\n", size_recv);
+			 // printf("recvsize is: %d\n", size_recv);
 		 }
 	 	responseSize = total_size; 
 		close(sockTCP);
     	return cont;
 	 }
-    //close(sockTCP);
-    //return cont;             	
 }
 
 void DieWithError(char *errorMessage)
@@ -425,20 +357,17 @@ void interupt(int sig){
 // Parses the request into a proper request object
 requestMsg *getRequest(unsigned char *resp) {
     requestMsg *request = malloc(sizeof(requestMsg));
-    printf("%s", resp + 4);
     unsigned int *commID = (unsigned int *) resp;
 
     char *robotID;
-    int robotIdLen = strlen(resp + 4);
+    int robotIdLen = strlen((char *) resp + 4);
     robotID = malloc(robotIdLen + 1);
     memcpy(robotID, resp + 4, robotIdLen + 1);
-    printf("ROBOT ID: %s\n", robotID);
 
     char *command;
-    int commandLen = strlen(resp + 4 + robotIdLen + 1);
+    int commandLen = strlen((char *) resp + 4 + robotIdLen + 1);
     command = malloc(commandLen + 1);
     memcpy(command, resp + 4 + robotIdLen + 1, commandLen);
-    printf("COMMAND %s\n", command);
     
     request->commID = *commID;
 
@@ -450,30 +379,24 @@ requestMsg *getRequest(unsigned char *resp) {
     return request;
 }
 
+// Attempts to resolve the host
 void resolveHost() {
     char tmp[SENDMAX];
 
-    //fprintf(stderr, "Resolving address '%s'\n", servIP);
     thehost = gethostbyname(servIP);
     if(thehost == NULL){
         memcpy(tmp, servIP + 7, strlen(servIP) + 1 - 7);
         thehost = gethostbyname(tmp);
-
-        /*fprintf(stderr, 
-          "	Resolve failed, trying %s\n",tmp);*/
     }
     if(thehost == NULL){
         thehost = gethostbyname(host);
-        /*fprintf(stderr, 
-          "	Resolve failed again, trying %s\n",host);*/
     }
 
     if(thehost == NULL){
         host = strtok(host, ":");
         if(host[0] == 'h'){
             char *more = strtok(NULL, ":");
-            //strcat(host, more);
-            host = more+2;
+            host = more + 2;
         }
         char *p = strtok(NULL, ":");
         if(p){
@@ -484,7 +407,6 @@ void resolveHost() {
     }
 
     if(thehost == NULL){
-        //fprintf(stderr, "\n%s\n", servIP);
         DieWithError("ERROR\tcan't resolve name");
     }
 

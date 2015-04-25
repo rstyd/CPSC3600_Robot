@@ -101,6 +101,7 @@ int main(int argc, char *argv[])
     moveRobot(0);
     
     
+    angle = ((PI * ((N - 1) - 2))/(N - 1)); 
 
     for (int i = 0; i < N - 1; i++) {
         printf("On turn: %d", i);
@@ -121,7 +122,7 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-
+// Saves all of the sensory data for the robot into a text and image file
 void takeSnapshot(int turn) {
     puts("Taking snapshot");
     char imageFilename[15];
@@ -132,24 +133,18 @@ void takeSnapshot(int turn) {
     FILE *textFile = fopen(textFilename, "wb");
     char  *GPS, *DGPS, *lasers;
     int gpsSize; 
-    GPS = getGPS(&gpsSize);
+    puts("BEFORE GPS");
+    GPS = (char *) getGPS(&gpsSize);
     printf("%d\n", gpsSize);
     int dgpsSize; 
-    DGPS = getDGPS(&dgpsSize);
+    puts("DGPS");
+    DGPS = (char *) getDGPS(&dgpsSize);
     int lasersSize;
-    lasers = getLasers(&lasersSize);
+    puts("LASERS");
+    lasers = (char *) getLasers(&lasersSize);
     printf("%d gpsSize %d dgpsSize %d lasersSize\n", gpsSize, dgpsSize, lasersSize);
     printf("gps %d  dgps %d lasers %d\n", gpsSize, dgpsSize, lasersSize);
-    puts("GPS DATA");
-    for (int i = 0; i < gpsSize; i++) {
-        printf("%c", GPS[i]);
-    }
-    char *textData = malloc(gpsSize + dgpsSize + lasersSize); 
-    char *gpsPreface = "GPS ";
-    char *dgpsPreface = "dGPS ";
-    char *lasersPreface = "Lasers ";
-    char *newLine = "\n";
-
+    
     fprintf(textFile, "GPS %s\n DGPS %s\n Lasers %s\n", GPS, DGPS, lasers);
     fclose(textFile);
 
@@ -164,6 +159,8 @@ void takeSnapshot(int turn) {
 
 
 }
+
+// Moves the robot the entered number of meters
 void moveRobot(int meters) {
     puts("Moving robot");
     // Compute the speed required for moving L meters in 7 seconds
@@ -185,6 +182,7 @@ void moveRobot(int meters) {
     stopRobot(); 
 }
 
+// Turns the robot
 void turnRobot(double angle) {
     puts("Turning Robot");
     char command[15];
@@ -203,6 +201,7 @@ void turnRobot(double angle) {
    stopRobot();
 }
 
+// Stops the robot
 void stopRobot() {
     puts("Stopping robot");
     char command[15];
@@ -214,6 +213,7 @@ void stopRobot() {
     data = recvRequest(&size);
 }
 
+// Gets the GPS data
 unsigned char *getGPS(int *size) {
     puts("Getting GPS");
     char command[15];
@@ -224,6 +224,7 @@ unsigned char *getGPS(int *size) {
     return data;
 }
 
+// Gets the DGPS data
 unsigned char *getDGPS(int *size) {
     puts("Getting DGPS");
     char command[15];
@@ -234,6 +235,7 @@ unsigned char *getDGPS(int *size) {
     return data;
 }
 
+// Gets the laser sensor data
 unsigned char *getLasers(int *size) {
     puts("Getting lasers");
     char command[15];
@@ -255,14 +257,11 @@ unsigned char *getImage(int *size) {
     return data;
 }
 
-void resetClock() {
-
-}
-
+// Send a request to the server
 void sendRequest(requestMsg *request) {
     // Send a UDP message to the middleware
     int sent;
-    size_t bufSize = sizeof(unsigned int) + strlen(request->robotID) + 1 + strlen(request->command + 1);
+    size_t bufSize = sizeof(unsigned int) + strlen(request->robotID) + 1 + strlen(request->command) + 1;
     char *requestBuffer = malloc(bufSize);
     memcpy(requestBuffer, &request->commID, 4);
     memcpy(requestBuffer + 4, request->robotID, strlen(request->robotID) + 1);
@@ -276,7 +275,6 @@ void sendRequest(requestMsg *request) {
         printf("SENT: %d %zu\n", sent, bufSize);
         DieWithError("sendto() sent a different number of bytes than expected");
     }
-    free(requestBuffer);
     printf("Bytes: %d sent request\n", sent);
 
 }
@@ -294,9 +292,8 @@ requestMsg *makeRequest(char *command) {
 
 
 
-
+// Recieves request from the server 
 unsigned char *recvRequest(int *size){
-    //return array of response msg instead???
     puts("Running recvRequest");
     responseMsg *messages[1000];  //array of response messages from server
 
@@ -305,7 +302,6 @@ unsigned char *recvRequest(int *size){
     }
     unsigned char *data;
     char returnBuffer[1000];
-    int respStringLen = 0;
 
     unsigned int fromSize = sizeof(fromAddr);
     int nMessages = -1;
@@ -320,7 +316,6 @@ unsigned char *recvRequest(int *size){
     int messagesRcvd = 0;
     while (true) {
         if (nMessages == messagesRcvd) {
-            puts("GOT a MESSAGE");
             break;
         }
         memset(returnBuffer, 0, 1000);
@@ -341,20 +336,14 @@ unsigned char *recvRequest(int *size){
         fileSize += respStringLen - 12;
         responseMsg *msg = malloc(sizeof(responseMsg));     
         msg->data = malloc(988);
+
         memcpy(&msg->requestID, returnBuffer, 4); 
         memcpy(&msg->nMessages, returnBuffer + 4, 4);
         memcpy(&msg->sequenceN,returnBuffer + 8,  4);
         memcpy(msg->data, returnBuffer + 12, respStringLen - 12);
-        
-        printf("ID: %d SEQ: %d nMessages: %d\n", msg->requestID, msg->sequenceN, msg->nMessages);
-        printf("LENGTH %d\n", respStringLen);
-        printf("STRING LANGTH%d\n", respStringLen - 12);
-        printf("%s\n", (char *) returnBuffer + 12);
         if (nMessages == -1)  {
-            puts("SETTING nMessages");
             nMessages = msg->nMessages; 
             if (nMessages > 1000) {
-                puts("that's a lot of messages"); 
                // messages = realloc(messages, nMessages * 1000); 
             }
         }
@@ -362,15 +351,16 @@ unsigned char *recvRequest(int *size){
         messagesRcvd++;
     }
      
+    // Checks to see if we have all of the messages we are supposed to
     for (int i = 0; i < nMessages; i++) {
         if (messages[i] == NULL) {
             fprintf(stderr, "Did not get all the messages required\n");
             exit(1); 
         }
     }
-    fileSize += 12; 
+
     printf("Recieved Filesize: %d\n", fileSize);
-    
+    // Assembles the fragments back into a whole
     data = malloc(fileSize);
     *size = fileSize; 
      int offset = 0;
@@ -382,8 +372,12 @@ unsigned char *recvRequest(int *size){
           fileSize -= 988;
           offset += 988;
         }
+    }   
+
+    // Free the messages 
+    for (int i = 0; i < nMessages; i++) {
+        free(messages[i]);
     }
- 
     return data;
 }
 
